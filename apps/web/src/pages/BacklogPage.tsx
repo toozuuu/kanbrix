@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { Issue, Sprint } from "../types";
 import { SprintPlanning } from "../components/sprints/SprintPlanning";
 import { NewSprintModal } from "../components/sprints/NewSprintModal";
+import { ProjectSpinner } from "../components/ui/ProjectSpinner";
 import { ListTodo } from "lucide-react";
 
 interface BacklogPageProps {
@@ -16,9 +17,13 @@ export function BacklogPage({ onIssueClick, onOpenNewIssue }: BacklogPageProps) 
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [isNewSprintModalOpen, setIsNewSprintModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const loadData = async () => {
-    if (!currentProject) return;
+    if (!currentProject) {
+      setIsLoading(false);
+      return;
+    }
     try {
       const [sprintList, issueList] = await Promise.all([
         api.sprints.list(currentProject.id),
@@ -29,10 +34,13 @@ export function BacklogPage({ onIssueClick, onOpenNewIssue }: BacklogPageProps) 
       setIssues(issueList);
     } catch (e) {
       console.error(e);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
+    setIsLoading(true);
     loadData();
   }, [currentProject?.id]);
 
@@ -45,6 +53,15 @@ export function BacklogPage({ onIssueClick, onOpenNewIssue }: BacklogPageProps) 
           Please select a project from the sidebar to plan sprints and view the backlog.
         </p>
       </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <ProjectSpinner
+        message="Loading backlog & sprints…"
+        subMessage={`Project: ${currentProject.name}`}
+      />
     );
   }
 

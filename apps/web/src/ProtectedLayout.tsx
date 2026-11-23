@@ -23,6 +23,7 @@ import { CommandPalette } from "./components/layout/CommandPalette";
 import { KeyboardShortcuts } from "./components/layout/KeyboardShortcuts";
 import { NewIssueModal } from "./components/kanban/NewIssueModal";
 import { IssueDetailModal } from "./components/issues/IssueDetailModal";
+import { ProjectSpinner } from "./components/ui/ProjectSpinner";
 import { Issue } from "./types";
 
 function accentStyle(hex:string):React.CSSProperties {
@@ -119,12 +120,11 @@ export default function ProtectedLayout() {
   },[user,currentProject,selectedIssue,isCreateIssueOpen,isCommandPaletteOpen,toast,navigate]);
   if (isLoading) {
     return (
-      <div className="flex flex-col h-dvh w-full items-center justify-center bg-background text-foreground">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <span className="text-xs font-medium text-muted-foreground">Loading Kanbrix...</span>
-        </div>
-      </div>
+      <ProjectSpinner
+        fullScreen
+        message="Loading Kanbrix…"
+        subMessage={currentWorkspace ? `Connecting to ${currentWorkspace.name}` : "Initializing your workspace"}
+      />
     );
   }
 

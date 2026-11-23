@@ -10,6 +10,7 @@ import { Issue } from "../types";
 import { Avatar } from "../components/ui/Avatar";
 import { Button } from "../components/ui/Button";
 import { LabelBadge } from "../components/ui/LabelBadge";
+import { ProjectSpinner } from "../components/ui/ProjectSpinner";
 import { formatRelativeTime, getPriorityColor, getTypeBadge } from "../lib/utils";
 import {
   Kanban,
@@ -78,7 +79,12 @@ export function DashboardPage({ onOpenCreateIssue, onSelectIssue }: DashboardPag
         </Button>
       </div>
 
-      {issueQuery.isFetching && !issueQuery.data && <p role="status">Loading project issuesâ€¦</p>}
+      {issueQuery.isFetching && !issueQuery.data && (
+        <ProjectSpinner
+          message="Loading project issues…"
+          subMessage={currentProject ? `Project: ${currentProject.name}` : undefined}
+        />
+      )}
       {issueQuery.isError && <button className="text-primary underline" onClick={() => issueQuery.refetch()}>Could not load project issues. Retry</button>}
       {issueQuery.data && <>
       {/* Metrics Row */}

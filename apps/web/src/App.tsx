@@ -5,6 +5,7 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { AuthProvider } from "./context/AuthContext";
 import { WorkspaceProvider } from "./context/WorkspaceContext";
 import { ToastProvider } from "./components/ui/Toast";
+import { ProjectSpinner } from "./components/ui/ProjectSpinner";
 
 import { ApiError } from "./lib/api";
 
@@ -36,7 +37,7 @@ export function App() {
                   <Route path="/" element={<LandingPage />} />
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/register" element={<RegisterPage />} />
-                  <Route path="/*" element={<Suspense fallback={<div role="status" className="p-6">Loading workspaceÃ¯Â¿Â½</div>}><ProtectedLayout /></Suspense>} />
+                  <Route path="/*" element={<Suspense fallback={<ProjectSpinner fullScreen message="Loading Kanbrix…" />}><ProtectedLayout /></Suspense>} />
                 </Routes>
               </BrowserRouter>
             </WorkspaceProvider>

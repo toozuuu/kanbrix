@@ -43,7 +43,7 @@ export function Modal({
     <dialog ref={dialog} aria-labelledby={titleId}
       onCancel={(event) => { event.preventDefault(); onClose(); }}
       onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
-      className={cn("m-auto max-h-[90dvh] w-[calc(100%-2rem)] rounded-2xl border border-border bg-card text-foreground shadow-2xl focus:outline-none backdrop:bg-black/45 backdrop:backdrop-blur-sm animate-fade-in", maxWidths[maxWidth])}>
+      className={cn("m-auto max-h-[90dvh] overflow-y-auto w-[calc(100%-2rem)] rounded-2xl border border-border bg-card text-foreground shadow-2xl focus:outline-none backdrop:bg-black/45 backdrop:backdrop-blur-sm animate-fade-in", maxWidths[maxWidth])}>
       <div className="p-5 sm:p-7">
         <div className="flex items-start justify-between pb-4 border-b border-border">
           <div>

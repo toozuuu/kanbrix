@@ -13,6 +13,7 @@ import { Issue } from "../types";
 import { KanbanBoard } from "../components/kanban/KanbanBoard";
 import { FilterBar } from "../components/issues/FilterBar";
 import { Button } from "../components/ui/Button";
+import { ProjectSpinner } from "../components/ui/ProjectSpinner";
 import { Plus, Kanban as KanbanIcon, ListTree, LayoutDashboard } from "lucide-react";
 
 interface KanbanPageProps {
@@ -169,10 +170,27 @@ export function KanbanPage({ onIssueClick, onAddIssueToStatus }: KanbanPageProps
 
       {!!cfg?.fields.length && <div className="flex flex-wrap gap-2 text-sm"><SelectBox aria-label="Filter by custom field" data-filter-active={Boolean(fieldId)} value={fieldId} onChange={e=>{const next=new URLSearchParams(params);next.delete("value");if(e.target.value)next.set("field",e.target.value);else next.delete("field");setParams(next,{replace:true});}}><option value="">All custom fields</option>{cfg.fields.map(f=><option key={f.id} value={f.id}>{f.label}</option>)}</SelectBox>{fieldId && <input aria-label="Custom field value" className="min-w-0 max-w-full rounded border border-input bg-card p-2" placeholder="Exact value" value={fieldValue} onChange={e=>updateFilter("value",e.target.value)}/>}</div>}
       {/* Kanban Board Canvas */}
-      <div className="flex-1 overflow-hidden min-h-0">
+      <div className="flex-1 overflow-hidden min-h-0 relative">
+        {queries.some(q => q.isFetching && !q.isPending) && (
+          <div className="absolute top-2 right-4 z-20 pointer-events-none flex items-center gap-2 rounded-full border border-primary/30 bg-card/95 px-3 py-1 shadow-md backdrop-blur-md text-xs font-medium text-foreground animate-fade-in">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+            </span>
+            Syncing project…
+          </div>
+        )}
         {queries.some(q => q.isError) || workflow.isError ? (
-          <button className="text-primary underline" onClick={() => { refresh(); workflow.refetch(); }}>Could not load board. Retry</button>
-        ) : queries.some(q => q.isPending) || workflow.isPending ? <p role="status">Loading board…</p> : <KanbanBoard
+          <div className="flex h-96 flex-col items-center justify-center text-center space-y-3">
+            <p className="text-sm text-destructive font-medium">Could not load board.</p>
+            <button className="text-sm font-semibold text-primary underline" onClick={() => { refresh(); workflow.refetch(); }}>Retry</button>
+          </div>
+        ) : queries.some(q => q.isPending) || workflow.isPending ? (
+          <ProjectSpinner
+            message="Loading board…"
+            subMessage={currentProject?.name ? `Refreshing ${currentProject.name}` : "Fetching board columns and issues"}
+          />
+        ) : <KanbanBoard
           key={projectId}
           statuses={workflow.data.statuses ?? []}
           issues={issues}
