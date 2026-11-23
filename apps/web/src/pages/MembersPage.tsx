@@ -1,3 +1,4 @@
+import { SelectBox } from "../components/ui/SelectBox";
 import React, { useEffect, useState } from "react";
 import { useWorkspace } from "../context/WorkspaceContext";
 import { api } from "../lib/api";
@@ -73,7 +74,7 @@ export function MembersPage() {
       </div>
 
       {/* Members Table */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
+      <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
         <table className="w-full text-left text-xs">
           <thead className="bg-muted/50 border-b border-border text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
             <tr>
@@ -125,15 +126,14 @@ export function MembersPage() {
             <label className="block text-xs font-semibold text-foreground/80 tracking-wide">
               Workspace Role
             </label>
-            <select
+            <SelectBox fullWidth id="workspace-role"
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="Admin">Admin (can manage settings and invite members)</option>
               <option value="Member">Member (can create and edit issues)</option>
               <option value="Viewer">Viewer (read-only access)</option>
-            </select>
+            </SelectBox>
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-border">

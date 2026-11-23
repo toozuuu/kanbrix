@@ -48,7 +48,17 @@ export type Project = {
 export type IssueType = 'Task' | 'Bug' | 'Story' | 'Epic';
 export type IssuePriority = 'Lowest' | 'Low' | 'Medium' | 'High' | 'Urgent';
 
+export type Label = {
+  id: string;
+  workspace_id?: string;
+  name: string;
+  color: string;
+};
+
+export type LabelResponse = Label;
+
 export type Issue = {
+  custom_values?: import('./configuration').Values;
   id: string;
   project_id: string;
   project_key: string;
@@ -71,6 +81,7 @@ export type Issue = {
   due_date?: string | null;
   created_at: string;
   updated_at: string;
+  labels: Label[];
 };
 
 export type Comment = {
@@ -116,4 +127,10 @@ export type ActivityLog = {
   action: string;
   metadata: Record<string, any>;
   created_at: string;
+};
+
+export type Attachment = {
+  id: string;
+  filename: string;
+  size: number;
 };

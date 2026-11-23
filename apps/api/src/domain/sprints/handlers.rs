@@ -11,6 +11,7 @@ use crate::{
     domain::sprints::dto::{CreateSprintRequest, SprintResponse},
 };
 
+#[utoipa::path(get,path="/api/v1/projects/{project_id}/sprints",params(("project_id"=Uuid,Path,description="project id")),responses((status=200,body=[SprintResponse])))]
 pub async fn list_project_sprints(
     auth_user: AuthenticatedUser,
     Path(project_id): Path<Uuid>,
@@ -32,7 +33,9 @@ pub async fn list_project_sprints(
     .is_some();
 
     if !has_access {
-        return Err(AppError::NotFound("Project not found or access denied".into()));
+        return Err(AppError::NotFound(
+            "Project not found or access denied".into(),
+        ));
     }
 
     let rows = sqlx::query!(
@@ -65,6 +68,7 @@ pub async fn list_project_sprints(
     Ok(Json(sprints))
 }
 
+#[utoipa::path(post,path="/api/v1/projects/{project_id}/sprints",params(("project_id"=Uuid,Path,description="project id")),request_body=CreateSprintRequest,responses((status=201,body=SprintResponse)))]
 pub async fn create_sprint(
     auth_user: AuthenticatedUser,
     Path(project_id): Path<Uuid>,
@@ -77,7 +81,7 @@ pub async fn create_sprint(
 
     let existing = sqlx::query!(
         r#"
-        SELECT p.workspace_id, wm.role
+        SELECT p.workspace_id, wm.role, p.sprint_enabled
         FROM projects p
         JOIN workspace_members wm ON p.workspace_id = wm.workspace_id
         WHERE p.id = $1 AND wm.user_id = $2
@@ -90,6 +94,18 @@ pub async fn create_sprint(
     .map_err(AppError::DatabaseError)?
     .ok_or_else(|| AppError::NotFound("Project not found or access denied".into()))?;
 
+    if !existing.sprint_enabled {
+        return Err(AppError::BadRequest(
+            "Sprints are disabled for this project".into(),
+        ));
+    }
+    crate::domain::workspaces::configuration::permit(
+        &state.pool,
+        existing.workspace_id,
+        &existing.role,
+        "manage_sprints",
+    )
+    .await?;
     if existing.role == "Viewer" {
         return Err(AppError::Forbidden("Viewers cannot create sprints".into()));
     }
@@ -125,6 +141,7 @@ pub async fn create_sprint(
     ))
 }
 
+#[utoipa::path(post,path="/api/v1/sprints/{sprint_id}/start",params(("sprint_id"=Uuid,Path,description="sprint id")),responses((status=200)))]
 pub async fn start_sprint(
     auth_user: AuthenticatedUser,
     Path(sprint_id): Path<Uuid>,
@@ -132,7 +149,7 @@ pub async fn start_sprint(
 ) -> Result<StatusCode, AppError> {
     let existing = sqlx::query!(
         r#"
-        SELECT s.project_id, wm.role
+        SELECT p.workspace_id, wm.role,p.sprint_enabled
         FROM sprints s
         JOIN projects p ON s.project_id = p.id
         JOIN workspace_members wm ON p.workspace_id = wm.workspace_id
@@ -146,16 +163,26 @@ pub async fn start_sprint(
     .map_err(AppError::DatabaseError)?
     .ok_or_else(|| AppError::NotFound("Sprint not found".into()))?;
 
+    crate::domain::workspaces::configuration::permit(
+        &state.pool,
+        existing.workspace_id,
+        &existing.role,
+        "manage_sprints",
+    )
+    .await?;
     if existing.role == "Viewer" {
         return Err(AppError::Forbidden("Viewers cannot start sprints".into()));
     }
 
-    sqlx::query!(
+    if !existing.sprint_enabled {
+        return Err(AppError::BadRequest("Sprints disabled".into()));
+    }
+    let changed = sqlx::query!(
         r#"
         UPDATE sprints
         SET status = 'active',
             start_date = COALESCE(start_date, NOW())
-        WHERE id = $1
+        WHERE id = $1 AND status <> 'completed'
         "#,
         sprint_id
     )
@@ -163,9 +190,13 @@ pub async fn start_sprint(
     .await
     .map_err(AppError::DatabaseError)?;
 
+    if changed.rows_affected() == 0 {
+        return Err(AppError::Conflict("Sprint already completed".into()));
+    }
     Ok(StatusCode::OK)
 }
 
+#[utoipa::path(post,path="/api/v1/sprints/{sprint_id}/complete",params(("sprint_id"=Uuid,Path,description="sprint id")),responses((status=200)))]
 pub async fn complete_sprint(
     auth_user: AuthenticatedUser,
     Path(sprint_id): Path<Uuid>,
@@ -173,7 +204,7 @@ pub async fn complete_sprint(
 ) -> Result<StatusCode, AppError> {
     let existing = sqlx::query!(
         r#"
-        SELECT s.project_id, wm.role
+        SELECT p.workspace_id, wm.role,p.sprint_enabled
         FROM sprints s
         JOIN projects p ON s.project_id = p.id
         JOIN workspace_members wm ON p.workspace_id = wm.workspace_id
@@ -187,22 +218,41 @@ pub async fn complete_sprint(
     .map_err(AppError::DatabaseError)?
     .ok_or_else(|| AppError::NotFound("Sprint not found".into()))?;
 
+    crate::domain::workspaces::configuration::permit(
+        &state.pool,
+        existing.workspace_id,
+        &existing.role,
+        "manage_sprints",
+    )
+    .await?;
     if existing.role == "Viewer" {
-        return Err(AppError::Forbidden("Viewers cannot complete sprints".into()));
+        return Err(AppError::Forbidden(
+            "Viewers cannot complete sprints".into(),
+        ));
     }
 
-    sqlx::query!(
+    let mut tx = state.pool.begin().await?;
+    let changed = sqlx::query!(
         r#"
         UPDATE sprints
         SET status = 'completed',
             end_date = NOW()
-        WHERE id = $1
+        WHERE id = $1 AND status <> 'completed'
         "#,
         sprint_id
     )
-    .execute(&state.pool)
-    .await
-    .map_err(AppError::DatabaseError)?;
-
+    .execute(&mut *tx)
+    .await?;
+    if changed.rows_affected() > 0 {
+        sqlx::query!(
+            "UPDATE issues i SET sprint_id = NULL, updated_at = NOW()
+            FROM issue_statuses s WHERE i.status_id = s.id AND i.sprint_id = $1
+            AND s.category <> 'Done' AND i.archived_at IS NULL",
+            sprint_id
+        )
+        .execute(&mut *tx)
+        .await?;
+    }
+    tx.commit().await?;
     Ok(StatusCode::OK)
 }

@@ -48,12 +48,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::info!("Database migrations applied successfully.");
 
+    tokio::spawn(domain::workspaces::integrations::run(pool.clone()));
     let state = AppState::new(pool, config.clone());
+    tokio::spawn(domain::issues::live::listen(
+        state.pool.clone(),
+        state.events.clone(),
+    ));
     let app = routes::create_router(state);
 
     let addr: SocketAddr = format!("{}:{}", config.server_host, config.server_port).parse()?;
     tracing::info!("Listening on http://{}", addr);
-    tracing::info!("OpenAPI documentation available at http://{}/swagger-ui", addr);
+    tracing::info!(
+        "OpenAPI documentation available at http://{}/swagger-ui",
+        addr
+    );
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
 

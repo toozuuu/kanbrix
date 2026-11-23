@@ -17,6 +17,7 @@ use crate::{
     },
 };
 
+#[utoipa::path(get,path="/api/v1/workspaces/{workspace_id}/projects",params(("workspace_id"=Uuid,Path,description="workspace id")),responses((status=200,body=[ProjectResponse])))]
 pub async fn list_workspace_projects(
     auth_user: AuthenticatedUser,
     Path(workspace_id): Path<Uuid>,
@@ -57,6 +58,7 @@ pub async fn list_workspace_projects(
     Ok(Json(projects))
 }
 
+#[utoipa::path(post,path="/api/v1/workspaces/{workspace_id}/projects",params(("workspace_id"=Uuid,Path,description="workspace id")),request_body=CreateProjectRequest,responses((status=201,body=ProjectResponse)))]
 pub async fn create_project(
     auth_user: AuthenticatedUser,
     Path(workspace_id): Path<Uuid>,
@@ -64,6 +66,13 @@ pub async fn create_project(
     Json(payload): Json<CreateProjectRequest>,
 ) -> Result<(StatusCode, Json<ProjectResponse>), AppError> {
     let role = verify_workspace_membership(&state.pool, workspace_id, auth_user.id).await?;
+    crate::domain::workspaces::configuration::permit(
+        &state.pool,
+        workspace_id,
+        role.to_str(),
+        "create_projects",
+    )
+    .await?;
     if !role.can_edit_project() {
         return Err(AppError::Forbidden(
             "Insufficient permissions to create project in this workspace".into(),
@@ -99,18 +108,23 @@ pub async fn create_project(
         other => AppError::DatabaseError(other),
     })?;
 
-    // Create default issue workflow statuses
-    let default_statuses = [
-        ("Backlog", "Backlog", 1000.0),
-        ("To Do", "Todo", 2000.0),
-        ("In Progress", "InProgress", 3000.0),
-        ("In Review", "InReview", 4000.0),
-        ("Done", "Done", 5000.0),
-    ];
-
+    let (_, cfg) = crate::domain::workspaces::configuration::current(&mut tx, workspace_id).await?;
+    let template = match payload.template {
+        Some(name) => cfg.templates.iter().find(|t| t.name == name),
+        None => cfg.templates.first(),
+    }
+    .ok_or_else(|| AppError::BadRequest("Unknown project template".into()))?;
+    sqlx::query("UPDATE projects SET sprint_enabled=$1,form_overrides=$3 WHERE id=$2")
+        .bind(template.sprints)
+        .bind(proj.id)
+        .bind(sqlx::types::Json(&template.form))
+        .execute(&mut *tx)
+        .await?;
     let mut created_statuses = Vec::new();
-
-    for (name, category, pos) in default_statuses {
+    for (index, column) in template.columns.iter().enumerate() {
+        let name = &column.name;
+        let category = &column.category;
+        let pos = (index + 1) as f64 * 1000.;
         let status_row = sqlx::query!(
             r#"
             INSERT INTO issue_statuses (project_id, name, category, position)
@@ -134,6 +148,20 @@ pub async fn create_project(
         });
     }
 
+    let mut transitions = Vec::new();
+    for [from, to] in &template.transitions {
+        if let (Some(a), Some(b)) = (
+            created_statuses.iter().find(|s| &s.name == from),
+            created_statuses.iter().find(|s| &s.name == to),
+        ) {
+            transitions.push([a.id, b.id]);
+        }
+    }
+    sqlx::query("UPDATE projects SET transitions=$1 WHERE id=$2")
+        .bind(serde_json::json!(transitions))
+        .bind(proj.id)
+        .execute(&mut *tx)
+        .await?;
     tx.commit().await.map_err(AppError::DatabaseError)?;
 
     Ok((
@@ -153,6 +181,7 @@ pub async fn create_project(
     ))
 }
 
+#[utoipa::path(get,path="/api/v1/projects/{project_id}",params(("project_id"=Uuid,Path,description="project id")),responses((status=200,body=ProjectResponse)))]
 pub async fn get_project(
     auth_user: AuthenticatedUser,
     Path(project_id): Path<Uuid>,
@@ -160,7 +189,7 @@ pub async fn get_project(
 ) -> Result<Json<ProjectResponse>, AppError> {
     let proj = sqlx::query!(
         r#"
-        SELECT p.id, p.workspace_id, p.name, p.project_key, p.description,
+        SELECT p.workflow_revision,p.id, p.workspace_id, p.name, p.project_key, p.description,
                p.issue_counter, p.archived_at, p.created_at, p.updated_at
         FROM projects p
         JOIN workspace_members wm ON p.workspace_id = wm.workspace_id
@@ -174,6 +203,16 @@ pub async fn get_project(
     .map_err(AppError::DatabaseError)?
     .ok_or_else(|| AppError::NotFound("Project not found or access denied".into()))?;
 
+    let key = format!(
+        "kanbrix:v1:project:{}:{}:{}:{}",
+        project_id,
+        proj.updated_at.timestamp_micros(),
+        proj.workflow_revision,
+        proj.issue_counter
+    );
+    if let Some(value) = state.cache.get(&key).await {
+        return Ok(Json(value));
+    }
     let statuses = sqlx::query!(
         r#"
         SELECT id, name, category, position
@@ -197,7 +236,7 @@ pub async fn get_project(
         })
         .collect();
 
-    Ok(Json(ProjectResponse {
+    let response = ProjectResponse {
         id: proj.id,
         workspace_id: proj.workspace_id,
         name: proj.name,
@@ -208,9 +247,12 @@ pub async fn get_project(
         created_at: proj.created_at,
         updated_at: proj.updated_at,
         statuses: Some(status_summaries),
-    }))
+    };
+    state.cache.put(&key, &response).await;
+    Ok(Json(response))
 }
 
+#[utoipa::path(patch,path="/api/v1/projects/{project_id}",params(("project_id"=Uuid,Path,description="project id")),request_body=UpdateProjectRequest,responses((status=200,body=ProjectResponse)))]
 pub async fn update_project(
     auth_user: AuthenticatedUser,
     Path(project_id): Path<Uuid>,

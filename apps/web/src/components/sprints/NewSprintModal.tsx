@@ -1,3 +1,4 @@
+import { DateField } from "../ui/DateField";
 import React, { useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Input } from "../ui/Input";
@@ -56,7 +57,7 @@ export function NewSprintModal({ isOpen, onClose, onSuccess }: NewSprintModalPro
       title="Create Planned Sprint"
       description={`Project: ${currentProject?.name}`}
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
         <Input
           label="Sprint Name"
           placeholder="e.g. Sprint 2 - Core Services"
@@ -73,22 +74,22 @@ export function NewSprintModal({ isOpen, onClose, onSuccess }: NewSprintModalPro
           rows={3}
         />
 
-        <div className="grid grid-cols-2 gap-4">
-          <Input
-            type="date"
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <DateField
             label="Start Date"
+            max={endDate}
             value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
+            onChange={setStartDate}
           />
-          <Input
-            type="date"
+          <DateField
             label="End Date"
+            min={startDate}
             value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
+            onChange={setEndDate}
           />
         </div>
 
-        <div className="flex justify-end gap-2 pt-2 border-t border-border">
+        <div className="flex justify-end gap-3 pt-3 border-t border-border/50">
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>

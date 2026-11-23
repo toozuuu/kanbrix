@@ -6,9 +6,18 @@ use validator::Validate;
 
 #[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct CreateProjectRequest {
-    #[validate(length(min = 2, max = 100, message = "Name must be between 2 and 100 characters"))]
+    pub template: Option<String>,
+    #[validate(length(
+        min = 2,
+        max = 100,
+        message = "Name must be between 2 and 100 characters"
+    ))]
     pub name: String,
-    #[validate(length(min = 2, max = 10, message = "Project key must be between 2 and 10 characters"))]
+    #[validate(length(
+        min = 2,
+        max = 10,
+        message = "Project key must be between 2 and 10 characters"
+    ))]
     pub project_key: String,
     pub description: Option<String>,
 }
@@ -19,7 +28,7 @@ pub struct UpdateProjectRequest {
     pub description: Option<String>,
 }
 
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct StatusSummary {
     pub id: Uuid,
     pub name: String,
@@ -27,7 +36,7 @@ pub struct StatusSummary {
     pub position: f64,
 }
 
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ProjectResponse {
     pub id: Uuid,
     pub workspace_id: Uuid,

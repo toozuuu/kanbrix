@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { Project, Workspace } from "../types";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import { Label, Project, Workspace } from "../types";
 import { api } from "../lib/api";
 import { useAuth } from "./AuthContext";
 
@@ -8,11 +8,13 @@ type WorkspaceContextType = {
   currentWorkspace: Workspace | null;
   projects: Project[];
   currentProject: Project | null;
+  labels: Label[];
   isLoading: boolean;
   setCurrentWorkspace: (workspace: Workspace) => void;
   setCurrentProject: (project: Project | null) => void;
   refreshWorkspaces: () => Promise<void>;
   refreshProjects: () => Promise<void>;
+  refreshLabels: () => Promise<void>;
 };
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
@@ -23,14 +25,18 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [currentWorkspace, setCurrentWorkspaceState] = useState<Workspace | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
+  const [labels, setLabels] = useState<Label[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  const activeWs=useRef(currentWorkspace?.id);
+  activeWs.current=currentWorkspace?.id;
   const refreshWorkspaces = async () => {
     if (!user) {
       setWorkspaces([]);
       setCurrentWorkspaceState(null);
       setProjects([]);
       setCurrentProject(null);
+      setLabels([]);
       setIsLoading(false);
       return;
     }
@@ -63,6 +69,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const list = await api.projects.list(currentWorkspace.id);
+      if(activeWs.current!==currentWorkspace.id)return;
       setProjects(list);
       if (list.length > 0) {
         const savedProjectId = localStorage.getItem("rusttrack-active-project");
@@ -76,14 +83,32 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const refreshLabels = async () => {
+    if (!currentWorkspace) {
+      setLabels([]);
+      return;
+    }
+
+    try {
+      const list = await api.labels.list(currentWorkspace.id);
+      if(activeWs.current===currentWorkspace.id) {
+        setLabels(list);
+      }
+    } catch (e) {
+      console.error("Failed to load labels", e);
+    }
+  };
+
   useEffect(() => {
     refreshWorkspaces();
+    refreshLabels();
   }, [user]);
 
   useEffect(() => {
     if (currentWorkspace) {
       localStorage.setItem("rusttrack-active-workspace", currentWorkspace.id);
       refreshProjects();
+      refreshLabels();
     }
   }, [currentWorkspace?.id]);
 
@@ -94,7 +119,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   }, [currentProject?.id]);
 
   const setCurrentWorkspace = (ws: Workspace) => {
+    if(ws.id!==activeWs.current){activeWs.current=ws.id;setProjects([]);setCurrentProject(null);setLabels([]);}
     setCurrentWorkspaceState(ws);
+    refreshLabels();
   };
 
   return (
@@ -104,11 +131,13 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         currentWorkspace,
         projects,
         currentProject,
+        labels,
         isLoading,
         setCurrentWorkspace,
         setCurrentProject,
         refreshWorkspaces,
         refreshProjects,
+        refreshLabels,
       }}
     >
       {children}

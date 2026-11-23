@@ -1,0 +1,58 @@
+name: kanbrix-production
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: rusttrack
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a random URL-safe database password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d rusttrack"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      SERVER_HOST: 0.0.0.0
+      KANBRIX_WEBHOOK_DESTINATIONS: ${KANBRIX_WEBHOOK_DESTINATIONS:-}
+      REDIS_URL: redis://redis:6379/
+      SERVER_PORT: 8080
+      CLIENT_ORIGIN: ${SITE_URL:?Set the public HTTPS origin}
+      COOKIE_SECURE: "true"
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:?Set a random URL-safe database password}@postgres:5432/rusttrack
+      STORAGE_BACKEND: local
+      STORAGE_LOCAL_PATH: /app/uploads
+    volumes:
+      - api_uploads:/app/uploads
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.web
+      args:
+        SITE_URL: ${SITE_URL:-}
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:5173:80"
+
+volumes:
+  postgres_data:
+  api_uploads:

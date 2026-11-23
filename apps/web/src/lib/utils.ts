@@ -58,6 +58,6 @@ export function getTypeBadge(type: string) {
       return { label: "Epic", color: "text-purple-500 bg-purple-500/10 border-purple-500/20" };
     case "task":
     default:
-      return { label: "Task", color: "text-sky-500 bg-sky-500/10 border-sky-500/20" };
+      return { label: type, color: "text-sky-500 bg-sky-500/10 border-sky-500/20" };
   }
 }

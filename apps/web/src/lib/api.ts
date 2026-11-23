@@ -2,6 +2,7 @@ import {
   ActivityLog,
   Comment,
   Issue,
+  Label,
   Notification,
   Project,
   Sprint,
@@ -9,6 +10,8 @@ import {
   Workspace,
   WorkspaceMember,
 } from "../types";
+
+import type { Snapshot, Values } from "../types/configuration";
 
 export class ApiError extends Error {
   code: string;
@@ -24,7 +27,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+export async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = endpoint.startsWith("/api") ? endpoint : `/api/v1${endpoint}`;
   
   const headers = new Headers(options.headers || {});
@@ -64,6 +67,12 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 }
 
 export const api = {
+  configuration: {
+    validate:(ws:string,body:Snapshot['configuration'])=>request<boolean>(`/workspaces/${ws}/configuration/validate`,{method:'POST',body:JSON.stringify(body)}),
+    read: (ws:string)=>request<Snapshot>(`/workspaces/${ws}/configuration`),
+    publish:(ws:string,body:Snapshot)=>request<Snapshot>(`/workspaces/${ws}/configuration`,{method:"PUT",body:JSON.stringify(body)}),
+    history:(ws:string)=>request<(Snapshot & {author:string;created_at:string})[]>(`/workspaces/${ws}/configuration/history`),
+  },
   // Auth
   auth: {
     me: () => request<User>("/auth/me"),
@@ -109,7 +118,7 @@ export const api = {
   projects: {
     list: (workspaceId: string) =>
       request<Project[]>(`/workspaces/${workspaceId}/projects`),
-    create: (workspaceId: string, body: { name: string; project_key: string; description?: string }) =>
+    create: (workspaceId: string, body: { name: string; project_key: string; template?:string; description?: string }) =>
       request<Project>(`/workspaces/${workspaceId}/projects`, {
         method: "POST",
         body: JSON.stringify(body),
@@ -124,6 +133,8 @@ export const api = {
 
   // Issues
   issues: {
+    counts: (projectId: string) =>
+      request<{ total: number; assigned: number; in_progress: number; completed: number }>(`/projects/${projectId}/issue-counts`),
     list: (
       projectId: string,
       filters: {
@@ -133,11 +144,25 @@ export const api = {
         priority?: string;
         sprint_id?: string;
         search?: string;
+        limit?: number;
+        offset?: number;
+        field_id?:string;field_value?:string;
+        recently_updated?: boolean;
+        due_before?: string;
+        unassigned?: boolean;
+        label_id?: string;
+        label_ids?: string[];
       } = {}
     ) => {
       const params = new URLSearchParams();
       Object.entries(filters).forEach(([k, v]) => {
-        if (v !== undefined && v !== "") params.append(k, v);
+        if (v !== undefined && v !== "") {
+          if (Array.isArray(v)) {
+            v.forEach(item => params.append(k, String(item)));
+          } else {
+            params.append(k, String(v));
+          }
+        }
       });
       const qs = params.toString();
       return request<Issue[]>(`/projects/${projectId}/issues${qs ? `?${qs}` : ""}`);
@@ -152,7 +177,9 @@ export const api = {
         status_id: string;
         assignee_id?: string | null;
         sprint_id?: string | null;
+        custom_values?: Values;
         due_date?: string | null;
+        labels?: string[];
       }
     ) =>
       request<Issue>(`/projects/${projectId}/issues`, {
@@ -170,7 +197,9 @@ export const api = {
         status_id?: string;
         assignee_id?: string | null;
         sprint_id?: string | null;
+        custom_values?: Values;
         due_date?: string | null;
+        labels?: string[];
       }
     ) =>
       request<Issue>(`/issues/${issueId}`, {
@@ -217,5 +246,29 @@ export const api = {
     list: () => request<Notification[]>("/notifications"),
     markRead: (id: string) =>
       request<void>(`/notifications/${id}/read`, { method: "POST" }),
+  },
+
+  // Labels
+  labels: {
+    list: (workspaceId: string) =>
+      request<Label[]>(`/workspaces/${workspaceId}/labels`),
+    create: (workspaceId: string, body: { name: string; color?: string }) =>
+      request<Label>(`/workspaces/${workspaceId}/labels`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    delete: (labelId: string) =>
+      request<void>(`/labels/${labelId}`, { method: "DELETE" }),
+  },
+
+  // Issue Labels
+  issueLabels: {
+    list: (issueId: string) =>
+      request<Label[]>(`/issues/${issueId}/labels`),
+    set: (issueId: string, labelIds: string[]) =>
+      request<void>(`/issues/${issueId}/labels`, {
+        method: "POST",
+        body: JSON.stringify(labelIds),
+      }),
   },
 };

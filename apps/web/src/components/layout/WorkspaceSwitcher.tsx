@@ -1,3 +1,4 @@
+import { useDropdownDisclosure } from "../ui/useDropdownDisclosure";
 import React, { useState } from "react";
 import { useWorkspace } from "../../context/WorkspaceContext";
 import { ChevronDown, Plus, Check, Briefcase } from "lucide-react";
@@ -11,6 +12,7 @@ export function WorkspaceSwitcher() {
   const { workspaces, currentWorkspace, setCurrentWorkspace, refreshWorkspaces } =
     useWorkspace();
   const [isOpen, setIsOpen] = useState(false);
+  const disclosure = useDropdownDisclosure(isOpen, setIsOpen);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
@@ -39,10 +41,11 @@ export function WorkspaceSwitcher() {
 
   return (
     <>
-      <div className="relative">
+      <div className="relative" {...disclosure.container}>
         <button
+          {...disclosure.trigger}
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center justify-between w-full p-2 rounded-lg hover:bg-accent text-left transition-colors border border-border/40"
+          className="flex items-center justify-between w-full p-2.5 rounded-xl bg-secondary/50 hover:bg-accent text-left transition-colors border border-input hover:border-primary"
         >
           <div className="flex items-center gap-2.5 truncate">
             <div className="h-7 w-7 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
@@ -66,18 +69,20 @@ export function WorkspaceSwitcher() {
               className="fixed inset-0 z-40"
               onClick={() => setIsOpen(false)}
             />
-            <div className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-lg border border-border bg-popover p-1 shadow-xl animate-in fade-in-0 zoom-in-95">
+            <div {...disclosure.panel} className="dropdown-surface max-h-[55vh] overflow-y-auto absolute top-full left-0 right-0 mt-1.5 z-50 ">
               <div className="px-2 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                 Workspaces
               </div>
               {workspaces.map((ws) => (
                 <button
                   key={ws.id}
+                  aria-current={currentWorkspace?.id === ws.id || undefined}
                   onClick={() => {
                     setCurrentWorkspace(ws);
+                    disclosure.trigger.ref.current?.focus();
                     setIsOpen(false);
                   }}
-                  className="flex items-center justify-between w-full px-2 py-1.5 text-xs rounded-md hover:bg-accent transition-colors text-left"
+                  className="flex items-center justify-between w-full min-h-9 px-2 py-1.5 text-sm rounded-md aria-[current=true]:bg-primary/10 hover:bg-accent transition-colors text-left"
                 >
                   <span className="font-medium truncate">{ws.name}</span>
                   {currentWorkspace?.id === ws.id && (
@@ -92,7 +97,7 @@ export function WorkspaceSwitcher() {
                   setIsOpen(false);
                   setIsModalOpen(true);
                 }}
-                className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded-md hover:bg-accent text-primary font-medium transition-colors"
+                className="flex items-center gap-2 w-full min-h-9 px-2 py-1.5 text-sm rounded-md hover:bg-accent text-primary font-medium transition-colors"
               >
                 <Plus className="h-3.5 w-3.5" />
                 Create Workspace

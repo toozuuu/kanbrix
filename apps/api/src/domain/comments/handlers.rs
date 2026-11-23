@@ -11,6 +11,7 @@ use crate::{
     domain::comments::dto::{CommentResponse, CreateCommentRequest},
 };
 
+#[utoipa::path(get,path="/api/v1/issues/{issue_id}/comments",params(("issue_id"=Uuid,Path,description="issue id")),responses((status=200,body=[CommentResponse])))]
 pub async fn list_comments(
     auth_user: AuthenticatedUser,
     Path(issue_id): Path<Uuid>,
@@ -34,7 +35,9 @@ pub async fn list_comments(
     .is_some();
 
     if !has_access {
-        return Err(AppError::NotFound("Issue not found or access denied".into()));
+        return Err(AppError::NotFound(
+            "Issue not found or access denied".into(),
+        ));
     }
 
     let rows = sqlx::query!(
@@ -69,6 +72,7 @@ pub async fn list_comments(
     Ok(Json(comments))
 }
 
+#[utoipa::path(post,path="/api/v1/issues/{issue_id}/comments",params(("issue_id"=Uuid,Path,description="issue id")),request_body=CreateCommentRequest,responses((status=201,body=CommentResponse)))]
 pub async fn create_comment(
     auth_user: AuthenticatedUser,
     Path(issue_id): Path<Uuid>,
@@ -97,7 +101,9 @@ pub async fn create_comment(
     .is_some();
 
     if !has_access {
-        return Err(AppError::NotFound("Issue not found or access denied".into()));
+        return Err(AppError::NotFound(
+            "Issue not found or access denied".into(),
+        ));
     }
 
     let row = sqlx::query!(

@@ -1,30 +1,55 @@
-import { HTMLAttributes } from "react";
+import React from "react";
 import { cn } from "../../lib/utils";
 
-export interface BadgeProps extends HTMLAttributes<HTMLDivElement> {
-  variant?: "default" | "secondary" | "outline" | "destructive" | "success" | "warning";
+export interface BadgeProps {
+  variant?: "default" | "secondary" | "outline" | "ghost" | "destructive" | "success" | "warning";
+  size?: "sm" | "md" | "lg";
+  className?: string;
+  children?: React.ReactNode;
+  style?: React.CSSProperties;
 }
 
-export function Badge({ className, variant = "default", children, ...props }: BadgeProps) {
+export function Badge({
+  variant = "default",
+  size = "md",
+  className,
+  children,
+  style,
+}: BadgeProps) {
   const variants = {
-    default: "bg-primary/10 text-primary border-primary/20",
-    secondary: "bg-secondary text-secondary-foreground border-border",
-    outline: "bg-transparent text-foreground border-border",
-    destructive: "bg-destructive/10 text-destructive border-destructive/20",
-    success: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-    warning: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+    default: "bg-primary text-primary-foreground hover:bg-primary-hover",
+    secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+    outline: "border border-border bg-transparent hover:bg-accent text-foreground",
+    ghost: "hover:bg-accent hover:text-foreground",
+    destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+    success: "bg-success text-success-foreground hover:bg-success/90",
+    warning: "bg-warning text-warning-foreground hover:bg-warning/90",
   };
 
+  const sizes = {
+    sm: "text-xs font-medium px-2.5 py-0.5",
+    md: "text-sm font-semibold px-3 py-1",
+    lg: "text-sm font-semibold px-4 py-1.5",
+  };
+
+  const defaultStyle: React.CSSProperties = {};
+  if (style?.backgroundColor && variant === "outline") {
+    defaultStyle.color = style.color || "#ffffff";
+  }
+
   return (
-    <div
+    <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold tracking-wide transition-colors",
+        "inline-flex items-center justify-center rounded-full transition-all duration-200",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        "disabled:pointer-events-none disabled:opacity-50",
         variants[variant],
+        sizes[size],
         className
       )}
-      {...props}
+      style={{ ...defaultStyle, ...style }}
     >
       {children}
-    </div>
+    </span>
   );
 }

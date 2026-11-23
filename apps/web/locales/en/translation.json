@@ -1,0 +1,136 @@
+{
+  "app": {
+    "name": "Kanbrix",
+    "loading": "Loading Kanbrix..."
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "board": "Board",
+    "backlog": "Backlog & Sprints",
+    "projects": "Projects",
+    "team_members": "Team Members",
+    "settings": "Settings"
+  },
+  "project_views": {
+    "project_views": "Project Views"
+  },
+  "workspace": {
+    "workspace": "Workspace",
+    "active_project": "Active Project"
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "issues": {
+    "new_issue": "New Issue",
+    "create_issue": "Create Issue",
+    "search": "Search",
+    "all_project_issues": "All project issues",
+    "total_issues": "Total Issues",
+    "assigned_to_you": "Assigned to You",
+    "in_progress": "In Progress",
+    "completed": "Completed"
+  },
+  "command_palette": {
+    "type_command_or_search": "Type a command or search issues...",
+    "quick_navigation": "Quick Navigation",
+    "search_workspace": "Search workspace"
+  },
+  "issues_detail": {
+    "description": "Description",
+    "edit_description": "Edit description",
+    "save_description": "Save description",
+    "cancel": "Cancel",
+    "summary": "Summary",
+    "issue_details": "Issue details",
+    "project": "Project"
+  },
+  "issue_form": {
+    "description_optional": "Description (optional)",
+    "status": "Status",
+    "priority": "Priority",
+    "type": "Type",
+    "save": "Save",
+    "attachments": "Attachments",
+    "add_comment": "Add a comment",
+    "preview": "Preview",
+    "write": "Write",
+    "bold": "Bold",
+    "list": "List",
+    "code_block": "Code block",
+    "underline": "Underline",
+    "highlight": "Highlight",
+    "link": "Link",
+    "image": "Image",
+    "heading": "Heading",
+    "task_list": "Task List",
+    "task_item": "Task Item"
+  },
+  "attachments": {
+    "attachments": "Attachments",
+    "drop_files": "Drop files here or click to browse (10 MiB each)",
+    "uploading": "Uploading…",
+    "no_attachments": "No attachments yet",
+    "retry": "Retry"
+  },
+  "comments": {
+    "comments": "Comments",
+    "add_a_comment": "Add a comment"
+  },
+  "settings": {
+    "personal_preferences": "Personal preferences",
+    "language": "Language",
+    "browser_language": "Browser language",
+    "time_zone": "Time zone",
+    "save_preferences": "Save preferences",
+    "branding": "Branding",
+    "calendar": "Calendar",
+    "issue_forms": "Issue forms",
+    "templates": "Templates",
+    "permissions": "Permissions",
+    "history": "History"
+  },
+  "reports": {
+    "project_reports": "Project Reports",
+    "flow": "Flow",
+    "burndown": "Burndown",
+    "lead_and_cycle_time": "Lead and cycle time",
+    "loading_report": "Loading report..."
+  },
+  "notifications": {
+    "notifications": "Notifications"
+  },
+  "authentication": {
+    "sign_in": "Sign In",
+    "sign_in_to_your_account": "Sign in to your account",
+    "email": "Email",
+    "password": "Password",
+    "kanban_board": "Kanban Board",
+    "sign_up": "Sign Up",
+    "name": "Name"
+  },
+  "shortcuts": {
+    "command_palette": ".",
+    "new_issue": "c",
+    "assign_to_self": "l",
+    "go_to_kanban": "g k",
+    "go_to_backlog": "g b",
+    "go_to_projects": "g p",
+    "go_to_dashboard": "g d",
+    "go_to_members": "g m"
+  },
+  "keyboard_shortcuts": {
+    "title": "Keyboard Shortcuts",
+    "open_command_palette": "Open Command Palette",
+    "create_new_issue": "Create new issue",
+    "assign_to_self": "Assign selected issue to yourself",
+    "go_to_kanban": "Go to Kanban Board",
+    "go_to_backlog": "Go to Backlog & Sprints",
+    "go_to_projects": "Go to Projects",
+    "go_to_dashboard": "Go to Dashboard",
+    "go_to_members": "Go to Team Members",
+    "help": "Keyboard Shortcuts"
+  }
+}

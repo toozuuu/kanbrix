@@ -1,3 +1,4 @@
+import { SelectBox } from "../ui/SelectBox";
 import { Sprint, Issue } from "../../types";
 import { Button } from "../ui/Button";
 import { Avatar } from "../ui/Avatar";
@@ -5,6 +6,7 @@ import { api } from "../../lib/api";
 import { useToast } from "../ui/Toast";
 import { getPriorityColor, getTypeBadge } from "../../lib/utils";
 import { Play, CheckCircle2, Layers, Plus } from "lucide-react";
+import { LabelBadge } from "../ui/LabelBadge";
 
 interface SprintPlanningProps {
   sprints: Sprint[];
@@ -57,7 +59,14 @@ export function SprintPlanning({
 
   const activeSprint = sprints.find((s) => s.status === "active");
   const plannedSprints = sprints.filter((s) => s.status === "planned");
-  const backlogIssues = issues.filter((i) => !i.sprint_id);
+  const bySprint = new Map<string, Issue[]>();
+  for (const issue of issues) {
+    const key = issue.sprint_id ?? "";
+    const group = bySprint.get(key);
+    if (group) group.push(issue);
+    else bySprint.set(key, [issue]);
+  }
+  const backlogIssues = bySprint.get("") ?? [];
 
   return (
     <div className="space-y-6">
@@ -83,12 +92,12 @@ export function SprintPlanning({
 
       {/* Active Sprint Section */}
       {activeSprint && (
-        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+        <div className="rounded-xl border border-l-4 border-primary/30 border-l-primary bg-card p-5 space-y-3 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
               <h3 className="text-sm font-bold text-foreground">{activeSprint.name}</h3>
-              <span className="text-[10px] font-semibold bg-primary/20 text-primary px-2 py-0.5 rounded-full uppercase tracking-wider">
+              <span className="text-[10px] font-semibold bg-primary/15 text-primary px-2 py-0.5 rounded-full uppercase tracking-wider">
                 Active Sprint
               </span>
             </div>
@@ -96,7 +105,7 @@ export function SprintPlanning({
               size="sm"
               variant="outline"
               onClick={() => handleCompleteSprint(activeSprint.id)}
-              className="gap-1.5 text-xs border-primary/40 hover:bg-primary/10"
+              className="gap-1.5 text-xs border-primary/40 hover:bg-primary/10 hover:border-primary/50"
             >
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
               <span>Complete Sprint</span>
@@ -109,17 +118,25 @@ export function SprintPlanning({
 
           {/* Active sprint issues */}
           <div className="space-y-1.5 pt-1">
-            {issues
-              .filter((i) => i.sprint_id === activeSprint.id)
+            {(bySprint.get(activeSprint.id) ?? [])
               .map((issue) => (
                 <div
                   key={issue.id}
                   onClick={() => onIssueClick(issue)}
-                  className="flex items-center justify-between p-2.5 rounded-lg border border-border/60 bg-card hover:border-primary/40 transition-colors cursor-pointer text-xs"
+                  className="flex items-center justify-between p-3 rounded-lg border border-border/60 bg-secondary/30 hover:border-primary/40 transition-colors cursor-pointer text-xs"
                 >
-                  <div className="flex items-center gap-2.5 truncate">
-                    <span className="font-mono font-semibold text-primary">{issue.identifier}</span>
-                    <span className="font-medium text-foreground truncate">{issue.title}</span>
+                  <div className="flex flex-col gap-1 truncate">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono font-semibold text-primary">{issue.identifier}</span>
+                      <span className="font-medium text-foreground truncate">{issue.title}</span>
+                    </div>
+                    {issue.labels.length > 0 && (
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {issue.labels.map(label => (
+                          <LabelBadge key={label.id} label={label} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-muted text-muted-foreground">
@@ -135,16 +152,16 @@ export function SprintPlanning({
 
       {/* Planned Sprints */}
       {plannedSprints.map((sprint) => {
-        const sprintIssues = issues.filter((i) => i.sprint_id === sprint.id);
+        const sprintIssues = bySprint.get(sprint.id) ?? [];
 
         return (
-          <div key={sprint.id} className="rounded-xl border border-border bg-card/60 p-4 space-y-3">
+          <div key={sprint.id} className="rounded-xl border border-border bg-card p-4 space-y-3 shadow-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <Layers className="h-4 w-4 text-muted-foreground" />
                 <h3 className="text-sm font-semibold text-foreground">{sprint.name}</h3>
-                <span className="text-[10px] text-muted-foreground">
-                  ({sprintIssues.length} issues)
+                <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full font-semibold text-muted-foreground">
+                  {sprintIssues.length} issues
                 </span>
               </div>
               <Button
@@ -167,11 +184,20 @@ export function SprintPlanning({
                 <div
                   key={issue.id}
                   onClick={() => onIssueClick(issue)}
-                  className="flex items-center justify-between p-2.5 rounded-lg border border-border/60 bg-card hover:border-primary/40 transition-colors cursor-pointer text-xs"
+                  className="flex items-center justify-between p-3 rounded-lg border border-border/60 bg-secondary/30 hover:border-primary/40 transition-colors cursor-pointer text-xs"
                 >
-                  <div className="flex items-center gap-2.5 truncate">
-                    <span className="font-mono font-semibold text-primary">{issue.identifier}</span>
-                    <span className="font-medium text-foreground truncate">{issue.title}</span>
+                  <div className="flex flex-col gap-1 truncate">
+                    <div className="flex items-center gap-2.5">
+                      <span className="font-mono font-semibold text-primary">{issue.identifier}</span>
+                      <span className="font-medium text-foreground truncate">{issue.title}</span>
+                    </div>
+                    {issue.labels.length > 0 && (
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {issue.labels.map(label => (
+                          <LabelBadge key={label.id} label={label} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <button
@@ -179,7 +205,7 @@ export function SprintPlanning({
                         e.stopPropagation();
                         handleAssignToSprint(issue.id, null);
                       }}
-                      className="text-[10px] text-muted-foreground hover:text-destructive px-1.5 py-0.5 rounded border border-border hover:bg-accent"
+                      className="text-[10px] text-muted-foreground hover:text-destructive px-1.5 py-0.5 rounded border border-border hover:bg-accent transition-colors"
                     >
                       Move to Backlog
                     </button>
@@ -199,7 +225,7 @@ export function SprintPlanning({
       })}
 
       {/* Product Backlog Section */}
-      <div className="rounded-xl border border-border bg-card/60 p-4 space-y-3">
+      <div className="rounded-xl border border-border bg-card p-4 space-y-3 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold text-foreground">Backlog</h3>
@@ -218,14 +244,23 @@ export function SprintPlanning({
               <div
                 key={issue.id}
                 onClick={() => onIssueClick(issue)}
-                className="flex items-center justify-between p-2.5 rounded-lg border border-border/60 bg-card hover:border-primary/40 transition-colors cursor-pointer text-xs group"
+                className="flex items-center justify-between p-3 rounded-lg border border-border/60 bg-secondary/30 hover:border-primary/40 transition-colors cursor-pointer text-xs group"
               >
-                <div className="flex items-center gap-2.5 truncate">
-                  <span className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold ${typeBadge.color}`}>
-                    {typeBadge.label}
-                  </span>
-                  <span className="font-mono font-semibold text-primary">{issue.identifier}</span>
-                  <span className="font-medium text-foreground truncate">{issue.title}</span>
+                <div className="flex flex-col gap-1 truncate">
+                  <div className="flex items-center gap-2.5">
+                    <span className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold ${typeBadge.color}`}>
+                      {typeBadge.label}
+                    </span>
+                    <span className="font-mono font-semibold text-primary">{issue.identifier}</span>
+                    <span className="font-medium text-foreground truncate">{issue.title}</span>
+                  </div>
+                  {issue.labels.length > 0 && (
+                    <div className="flex items-center gap-1 flex-wrap opacity-70">
+                      {issue.labels.map(label => (
+                        <LabelBadge key={label.id} label={label} />
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
@@ -235,14 +270,13 @@ export function SprintPlanning({
 
                   {/* Move to sprint selector */}
                   {sprints.length > 0 && (
-                    <select
+                    <SelectBox compact aria-label={`Move ${issue.title} to sprint`}
                       onClick={(e) => e.stopPropagation()}
                       onChange={(e) => {
                         const targetSprintId = e.target.value || null;
                         handleAssignToSprint(issue.id, targetSprintId);
                       }}
                       defaultValue=""
-                      className="text-[10px] rounded border border-input bg-background/50 px-1.5 py-1 focus:outline-none"
                     >
                       <option value="" disabled>
                         Move to Sprint...
@@ -252,7 +286,7 @@ export function SprintPlanning({
                           {s.name} ({s.status})
                         </option>
                       ))}
-                    </select>
+                    </SelectBox>
                   )}
 
                   {issue.assignee_name && <Avatar name={issue.assignee_name} size="sm" />}

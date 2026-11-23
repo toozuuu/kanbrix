@@ -1,3 +1,5 @@
+import { SelectBox } from "../components/ui/SelectBox";
+import { useConfiguration } from "../context/useConfiguration";
 import React, { useState } from "react";
 import { useWorkspace } from "../context/WorkspaceContext";
 import { api } from "../lib/api";
@@ -6,18 +8,21 @@ import { Modal } from "../components/ui/Modal";
 import { Input } from "../components/ui/Input";
 import { Textarea } from "../components/ui/Textarea";
 import { useToast } from "../components/ui/Toast";
-import { formatDate } from "../lib/utils";
+import { useCalendar } from "./PersonalSettings";
 import { FolderKanban, Plus, Layers, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export function ProjectsPage() {
   const { currentWorkspace, projects, currentProject, setCurrentProject, refreshProjects } =
     useWorkspace();
+  const cfg=useConfiguration().data?.configuration;
+  const [template,setTemplate]=useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [name, setName] = useState("");
   const [projectKey, setProjectKey] = useState("");
   const [description, setDescription] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const {display:formatDate}=useCalendar();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -28,6 +33,7 @@ export function ProjectsPage() {
     try {
       setIsLoading(true);
       const newProj = await api.projects.create(currentWorkspace.id, {
+        template: template || undefined,
         name: name.trim(),
         project_key: projectKey.trim().toUpperCase(),
         description: description.trim() || undefined,
@@ -171,6 +177,7 @@ export function ProjectsPage() {
             required
           />
 
+          <label className="block text-sm">Project template<SelectBox fullWidth value={template} onChange={e=>setTemplate(e.target.value)}><option value="">Organization default</option>{cfg?.templates.map(t=><option key={t.name}>{t.name}</option>)}</SelectBox></label>
           <Textarea
             label="Description (Optional)"
             placeholder="What is this project focused on?"

@@ -1,5 +1,21 @@
 # RustTrack Roadmap
 
+## Jira Cloud company-managed software project compatibility
+
+Kanbrix uses the documented behavior of Jira Cloud company-managed software projects as its compatibility target. The implementation uses Kanbrix's interface and API and is covered by the repository's AGPL license.
+
+| Area | Kanbrix coverage | Remaining compatibility work |
+| --- | --- | --- |
+| Board filters | Current assignee and the rolling 24-hour update filter | Saved filters, board-level JQL, sub-filters, and administrator-managed custom filters |
+| Board configuration | Workflow columns and issue ordering | Multi-project boards, swimlanes, column constraints, and card layout settings |
+| Planning | Backlog and sprint lifecycle | Parallel sprint behavior, versions and releases, and epic planning |
+| Administration | Workspace roles, configurable issue fields, and project workflows | Shared schemes, granular project permissions, workflow conditions, validators, and post-functions |
+| Reporting and integrations | Project reports and API | Report comparisons against Jira fixtures, automation rules, Jira import, and integration compatibility |
+
+Board filter acceptance checks cover a project with issues assigned to different users, timestamps on both sides of the rolling 24-hour cutoff, and enough issues to span multiple pages. The update filter must apply before pagination and work together with the existing assignee filter.
+
+[Atlassian documentation for company-managed board quick filters](https://support.atlassian.com/jira-software-cloud/docs/configure-quick-filters/)
+
 ## Phase 1: Foundation (Completed)
 - [x] Monorepo structure, Docker Compose, CI configuration
 - [x] Rust Axum backend with structured logging, health checks, error models

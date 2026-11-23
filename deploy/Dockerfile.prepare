@@ -1,0 +1,36 @@
+# Dockerfile for running `cargo sqlx prepare`
+# This generates the .sqlx/ offline query cache directory.
+# Run via: docker compose -f docker-compose.prepare.yml run --rm sqlx-prepare
+FROM rust:1.91.1-alpine
+
+RUN apk add --no-cache curl musl-dev pkgconfig openssl-dev openssl-libs-static
+
+# Install sqlx-cli matching our sqlx dependency version (0.7.x)
+# --locked ensures reproducible install
+RUN cargo install sqlx-cli \
+    --version '^0.7' \
+    --no-default-features \
+    --features rustls,postgres \
+    --locked
+
+WORKDIR /app
+
+# Copy workspace files
+COPY Cargo.toml Cargo.lock ./
+COPY apps/api ./apps/api
+
+# Working dir must be workspace root for --workspace flag
+WORKDIR /app
+
+# Script:
+# 1. Create the DB if it doesn't exist
+# 2. Run migrations to create all tables (required for sqlx to introspect)
+# 3. Run sqlx prepare to generate .sqlx/ cache for all crates in workspace
+CMD ["sh", "-c", "\
+    echo '🚀 Running sqlx database setup...' && \
+    cargo sqlx database create && \
+    cargo sqlx migrate run --source apps/api/migrations && \
+    echo '📝 Generating .sqlx offline cache...' && \
+    cargo sqlx prepare --workspace && \
+    echo '✅ Done! .sqlx/ cache generated.' \
+"]

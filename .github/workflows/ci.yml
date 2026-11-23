@@ -1,4 +1,7 @@
-name: RustTrack CI
+name: Kanbrix CI
+
+permissions:
+  contents: read
 
 on:
   push:
@@ -10,6 +13,8 @@ jobs:
   backend:
     name: Backend Lint, Test & Build
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgres://postgres:postgrespassword@localhost:5432/rusttrack_test
     services:
       postgres:
         image: postgres:16-alpine
@@ -29,8 +34,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.91.1
           components: clippy, rustfmt
 
       - name: Rust Cache
@@ -42,16 +48,31 @@ jobs:
         working-directory: apps/api
         run: cargo fmt -- --check
 
+      - name: Prepare PostgreSQL for SQLx
+        run: |
+          for migration in apps/api/migrations/*.sql; do
+            psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f "$migration"
+          done
+
       - name: Run Clippy
         working-directory: apps/api
         run: cargo clippy -- -D warnings
+
+      - name: Verify database constraints and compare representative query plans
+        run: |
+          psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f scripts/seed.sql
+          psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f scripts/test-scope.sql
+          psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f scripts/test-configuration.sql
+          psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f scripts/test-report.sql
+          for size in 100 1000 10000; do
+            psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -v size="$size" -f scripts/benchmark.sql
+          done
 
       - name: Run Tests
         working-directory: apps/api
         env:
           DATABASE_URL: postgres://postgres:postgrespassword@localhost:5432/rusttrack_test
           APP_ENV: test
-          SESSION_SECRET: test_session_secret_at_least_32_characters_long
         run: cargo test --verbose
 
   frontend:
@@ -75,6 +96,66 @@ jobs:
         working-directory: apps/web
         run: npm run lint
 
+      - name: Run component tests
+        working-directory: apps/web
+        run: npm test
+
       - name: Typecheck & Build
         working-directory: apps/web
         run: npm run build
+
+  compose:
+    name: Compose startup and database recovery
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up -d --build
+      - name: Verify public page and API readiness
+        run: |
+          curl --fail --retry 30 --retry-all-errors --retry-delay 2 http://localhost:8080/ready
+          curl --fail http://localhost:5173/ | grep -q 'Release board'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5173/api/v1/auth/me)" = 401
+      - name: Regenerate client from the running API and typecheck consumers
+        working-directory: apps/web
+        run: |
+          npm ci
+          npm run generate:api
+          npm run lint
+      - name: Exercise attachments, live updates, reports and workspace search
+        working-directory: apps/web
+        run: node scripts/test-collaboration.mjs
+      - name: Verify metadata cache is populated
+        run: test "$(docker compose exec -T redis redis-cli DBSIZE)" -gt 0
+      - name: Verify sprint lifecycle through the API
+        run: python3 scripts/test-sprint.py
+      - name: Verify organization configuration through the API
+        run: python3 scripts/test-configuration.py
+      - name: Restore a snapshot into a separate database and compare data
+        run: |
+          docker compose exec -T postgres pg_dump -U postgres -Fc rusttrack > "$RUNNER_TEMP/kanbrix.dump"
+          docker compose exec -T postgres createdb -U postgres recovery
+          docker compose exec -T postgres pg_restore -U postgres --exit-on-error -d recovery < "$RUNNER_TEMP/kanbrix.dump"
+          for db in rusttrack recovery; do
+            docker compose exec -T postgres psql -U postgres -d "$db" -Atc "SELECT id, project_id, issue_number, title FROM issues ORDER BY id" > "$RUNNER_TEMP/$db.rows"
+          done
+          test -s "$RUNNER_TEMP/rusttrack.rows"
+          diff "$RUNNER_TEMP/rusttrack.rows" "$RUNNER_TEMP/recovery.rows"
+      - if: failure()
+        run: docker compose logs --tail=100
+      - if: always()
+        run: docker compose down
+
+  dependencies:
+    name: Dependency advisories
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - working-directory: apps/web
+        run: npm audit --omit=dev --audit-level=high
+      - if: success() || failure()
+        run: |
+          cargo install cargo-audit --locked
+          cargo audit

@@ -1,108 +1,79 @@
+import { useEffect, useRef, useState } from "react";
+import { DemoBoard, initial, stages, tasks, type BoardProps } from "./DemoBoard";
+import type { ComponentType } from "react";
 import { Link } from "react-router-dom";
-import { Zap, ShieldCheck, Kanban, ArrowRight, Sparkles } from "lucide-react";
-import { Button } from "../components/ui/Button";
+import { ArrowRight, Check, Columns3, List, Share2 } from "lucide-react";
+import "./landing.css";
 
 export function LandingPage() {
-  return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col selection:bg-primary/20 selection:text-primary">
-      {/* Navigation */}
-      <nav className="h-16 border-b border-border/60 bg-card/40 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-50">
-        <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground shadow-sm">
-            <Zap className="h-5 w-5" />
-          </div>
-          <span className="text-base font-bold tracking-tight">
-            Rust<span className="text-primary">Track</span>
-          </span>
+  const [positions, setPositions] = useState(initial);
+  const [list, setList] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [shareUrl, setShareUrl] = useState("");
+  useEffect(() => {
+    const saved = new URLSearchParams(window.location.search).get("demo");
+    if (saved && /^[012]{3}$/.test(saved)) setPositions([...saved].map(Number));
+  }, []);
+  const demo = useRef<HTMLElement>(null);
+  const [Board, setBoard] = useState<ComponentType<BoardProps>>(() => DemoBoard);
+  useEffect(() => {
+    let active = true;
+    const load = () => { void import("./DraggableDemo").then(module => {
+      if (active) setBoard(() => module.default);
+    }).catch(() => {}); };
+    if (!demo.current || !window.IntersectionObserver) { load(); return () => { active = false; }; }
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) { observer.disconnect(); load(); }
+    }, { rootMargin: "150px" });
+    observer.observe(demo.current);
+    return () => { active = false; observer.disconnect(); };
+  }, []);
+  function move(index: number, next = (positions[index] + 1) % stages.length) {
+    if (positions[index] === next) return;
+    setPositions(previous => previous.map((value, i) => i === index ? next : value));
+    setNotice(tasks[index].title + " moved to " + stages[next]);
+    setShareUrl("");
+  }
+  async function share() {
+    const url = new URL("/", window.location.origin);
+    url.searchParams.set("demo", positions.join(""));
+    url.hash = "demo";
+    try {
+      await navigator.clipboard.writeText(url.href);
+      setNotice("Board link copied.");
+    } catch {
+      setShareUrl(url.href);
+      setNotice("Select and copy your board link.");
+    }
+  }
+  const done = positions.filter(stage => stage === 2).length;
+  return <div className="launch">
+    <header className="launch-nav"><Link to="/" className="launch-brand"><img src="/kanbrix.svg" width="36" height="36" alt=""/>Kanbrix</Link>
+      <nav aria-label="Site"><a href="#demo">Live board</a><Link to="/login">Sign in <ArrowRight size={15}/></Link></nav>
+    </header>
+    <main>
+      <section className="launch-hero">
+        <div className="launch-copy">
+          <h1>From backlog<br/>to <em>shipped.</em></h1>
+          <p>Kanbrix is an open-source Jira alternative for teams that want to self-host their issue tracker. Plan sprints, assign work, and see what’s ready to ship.</p>
+          <div className="launch-actions"><Link to="/register">Create an account <ArrowRight size={17}/></Link><a href="#demo">Try the board ↓</a></div>
         </div>
-
-        <div className="flex items-center gap-3">
-          <Link to="/login">
-            <Button variant="ghost" size="sm">
-              Sign In
-            </Button>
-          </Link>
-          <Link to="/register">
-            <Button size="sm" className="gap-1.5 shadow-sm">
-              <span>Get Started</span>
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Button>
-          </Link>
-        </div>
-      </nav>
-
-      {/* Hero Section */}
-      <main className="flex-1 flex flex-col items-center justify-center px-4 py-20 max-w-5xl mx-auto text-center space-y-8">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-semibold tracking-wide animate-in fade-in-0 slide-in-from-top-2">
-          <Sparkles className="h-3.5 w-3.5" />
-          <span>Self-Hosted • Blazing Fast Rust Monolith • AGPL-3.0</span>
-        </div>
-
-        <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-tight max-w-4xl">
-          The Developer-First Issue Tracker Engineered for{" "}
-          <span className="bg-gradient-to-r from-primary via-indigo-500 to-sky-400 bg-clip-text text-transparent">
-            Extreme Velocity.
-          </span>
-        </h1>
-
-        <p className="text-base sm:text-lg text-muted-foreground max-w-2xl leading-relaxed">
-          Take full control of your engineering workflows with a modern Jira alternative.
-          Powered by Rust and React, featuring instant Kanban interactions, strict multi-tenant
-          isolation, and sprint planning.
-        </p>
-
-        <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
-          <Link to="/register">
-            <Button size="lg" className="gap-2 shadow-lg">
-              <span>Start Free & Self-Host</span>
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
-          <Link to="/login">
-            <Button variant="outline" size="lg">
-              Demo Sign In
-            </Button>
-          </Link>
-        </div>
-
-        {/* Feature Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-16 text-left w-full">
-          <div className="p-6 rounded-2xl border border-border/80 bg-card/60 backdrop-blur-sm space-y-3 hover:border-primary/50 transition-all shadow-sm">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
-              <Zap className="h-5 w-5" />
-            </div>
-            <h3 className="text-base font-semibold text-foreground">Rust Microsecond Core</h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Axum and Tokio handle hundreds of thousands of concurrent requests with near-zero memory footprint.
-            </p>
-          </div>
-
-          <div className="p-6 rounded-2xl border border-border/80 bg-card/60 backdrop-blur-sm space-y-3 hover:border-primary/50 transition-all shadow-sm">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
-              <Kanban className="h-5 w-5" />
-            </div>
-            <h3 className="text-base font-semibold text-foreground">Intuitive Drag-and-Drop</h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Fluid Kanban boards with optimistic ordering, instant status transitions, and keyboard shortcuts.
-            </p>
-          </div>
-
-          <div className="p-6 rounded-2xl border border-border/80 bg-card/60 backdrop-blur-sm space-y-3 hover:border-primary/50 transition-all shadow-sm">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
-              <ShieldCheck className="h-5 w-5" />
-            </div>
-            <h3 className="text-base font-semibold text-foreground">Air-Tight Multi-Tenancy</h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Argon2id password hashing, HttpOnly session cookies, and workspace-level query isolation.
-            </p>
+        <div className="launch-print" aria-hidden="true"><div className="print-grid"/><div className="print-stack"><img src="/kanbrix.svg" alt=""/></div></div>
+      </section>
+      <section ref={demo} id="demo" className="launch-demo" aria-label="Interactive sample board">
+        <div className="demo-title"><div><p>Interactive demo</p><h2>Release board</h2></div>
+          <div className="demo-tools">
+            <button aria-pressed={!list} onClick={() => setList(false)}><Columns3 size={15}/>Board</button>
+            <button aria-pressed={list} onClick={() => setList(true)}><List size={15}/>List</button>
+            <button onClick={share}><Share2 size={15}/>Share</button>
           </div>
         </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t border-border/60 py-6 text-center text-xs text-muted-foreground">
-        <p>© 2026 RustTrack Open Source Project. Licensed under AGPL-3.0.</p>
-      </footer>
-    </div>
-  );
+        <div className="demo-progress"><Check size={14}/>{done} of {tasks.length} issues done <progress value={done} max={tasks.length}/></div>
+        <p className="demo-help">Drag an issue by its title, or use its action button to change status.</p>
+        <Board positions={positions} list={list} move={move}/>
+        <p className="demo-notice" role="status">{notice}</p>
+        {shareUrl && <input aria-label="Shareable demo link" value={shareUrl} readOnly onFocus={e => e.target.select()}/>}
+      </section>
+    </main>
+  </div>;
 }

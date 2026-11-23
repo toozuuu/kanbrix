@@ -1,190 +1,118 @@
+import { SelectBox } from "../ui/SelectBox";
+import {useTranslation} from "react-i18next";
+import { useWorkflow } from "../../context/useWorkflow";
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import {
-  LayoutDashboard,
-  Kanban,
-  ListTodo,
-  FolderKanban,
-  Users,
-  Settings,
-  LogOut,
-  Moon,
-  Sun,
-  Laptop,
-  ChevronLeft,
-  ChevronRight,
-  Zap,
+  LayoutDashboard, Kanban, ListTodo, FolderKanban, Users, Settings, LogOut,
+  Moon, Sun, Laptop, PanelLeftClose, PanelLeftOpen, Layers3,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useWorkspace } from "../../context/WorkspaceContext";
 import { useTheme } from "../../context/ThemeContext";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { Avatar } from "../ui/Avatar";
+import { ConfirmModal } from "../ui/ConfirmModal";
 import { cn } from "../../lib/utils";
 
-export function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false);
-  const location = useLocation();
-  const { user, logout } = useAuth();
-  const { currentProject, projects, setCurrentProject } = useWorkspace();
-  const { theme, setTheme } = useTheme();
-
-  const navItems = [
+const groups = [
+  { label: "Project views", items: [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { label: "Kanban Board", href: "/kanban", icon: Kanban },
-    { label: "Backlog & Sprints", href: "/backlog", icon: ListTodo },
+    { label: "Board", href: "/kanban", icon: Kanban },
+    { label: "Backlog & sprints", href: "/backlog", icon: ListTodo },
+  ] },
+  { label: "Workspace", items: [
     { label: "Projects", href: "/projects", icon: FolderKanban },
-    { label: "Team Members", href: "/members", icon: Users },
+    { label: "Team members", href: "/members", icon: Users },
     { label: "Settings", href: "/settings", icon: Settings },
-  ];
+  ] },
+];
+const themes = [
+  { value: "light", label: "Light", icon: Sun },
+  { value: "dark", label: "Dark", icon: Moon },
+  { value: "system", label: "System", icon: Laptop },
+] as const;
+
+export function Sidebar() {
+  const {t}=useTranslation();
+  const [collapsed, setCollapsed] = useState(() =>
+    window.innerWidth < 768 || localStorage.getItem("kanbrix-nav-compact") === "true");
+  const { user, logout } = useAuth();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const { currentProject, projects, setCurrentProject } = useWorkspace();
+  const workflow=useWorkflow();
+  const { theme, setTheme } = useTheme();
+  function toggle() {
+    if (window.innerWidth >= 768) localStorage.setItem("kanbrix-nav-compact", String(!collapsed));
+    setCollapsed(!collapsed);
+  }
 
   return (
-    <aside
-      className={cn(
-        "relative flex flex-col border-r border-border bg-card/60 backdrop-blur-md transition-all duration-200 z-30 select-none",
-        collapsed ? "w-16" : "w-64"
-      )}
-    >
-      {/* Brand & Collapse Toggle */}
-      <div className="flex h-14 items-center justify-between px-3 border-b border-border/60">
-        {!collapsed && (
-          <Link to="/dashboard" className="flex items-center gap-2 font-bold tracking-tight text-foreground">
-            <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center text-primary-foreground shadow-sm">
-              <Zap className="h-4 w-4" />
-            </div>
-            <span className="text-sm font-semibold tracking-wide">
-              Rust<span className="text-primary">Track</span>
+    <div className={cn("relative shrink-0", collapsed ? "w-14" : "w-14 md:w-64")}>
+      {!collapsed && <button aria-label="Close navigation" onClick={toggle}
+        className="fixed inset-x-0 bottom-0 top-14 z-20 bg-black/35 md:hidden" />}
+      <aside aria-label="Workspace sidebar"
+        onKeyDown={event => { if (event.key === "Escape" && !collapsed && window.innerWidth < 768) setCollapsed(true); }}
+        className={cn("absolute inset-y-0 left-0 z-30 flex flex-col border-r border-border bg-card",
+          collapsed ? "w-14" : "w-64 max-w-[90vw] shadow-xl md:shadow-none")}>
+        <div className={cn("flex items-center gap-2 border-b border-border p-2", collapsed && "justify-center")}>
+          {!collapsed && <div className="min-w-0 flex-1"><WorkspaceSwitcher /></div>}
+          <button onClick={toggle} title={collapsed ? "Expand navigation" : "Collapse navigation"}
+            aria-expanded={!collapsed} className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary">
+            {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+          </button>
+        </div>
+        <nav aria-label="Main navigation" className="min-h-0 flex-1 overflow-y-auto px-2 py-4">
+          {!collapsed && projects.length > 0 && <label className="mb-5 flex items-center gap-2 rounded-lg border border-border p-2">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary"><Layers3 size={18}/></span>
+            <span className="min-w-0 flex-1"><span className="block px-1 text-xs text-muted-foreground">{t("Active project")}</span>
+              <SelectBox fullWidth compact value={currentProject?.id ?? ""} aria-label={t("Active project")}
+                onChange={event => setCurrentProject(projects.find(project => project.id === event.target.value) ?? null)}>
+                {!currentProject && <option value="">Choose project</option>}
+                {projects.map(project => <option key={project.id} value={project.id}>{project.name} ({project.project_key})</option>)}
+              </SelectBox>
             </span>
-          </Link>
-        )}
-        {collapsed && (
-          <div className="mx-auto h-7 w-7 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
-            <Zap className="h-4 w-4" />
-          </div>
-        )}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        </button>
-      </div>
-
-      {/* Workspace Switcher */}
-      <div className="p-3 border-b border-border/40">
-        {!collapsed ? (
-          <WorkspaceSwitcher />
-        ) : (
-          <div className="flex justify-center">
-            <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-xs">
-              RT
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Active Project Selector */}
-      {!collapsed && projects.length > 0 && (
-        <div className="px-3 pt-3 pb-1">
-          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-            Active Project
-          </label>
-          <select
-            value={currentProject?.id || ""}
-            onChange={(e) => {
-              const selected = projects.find((p) => p.id === e.target.value);
-              if (selected) setCurrentProject(selected);
-            }}
-            className="w-full text-xs rounded-md border border-input bg-background/50 px-2 py-1.5 shadow-sm focus:outline-none focus:ring-1 focus:ring-primary truncate"
-          >
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                [{p.project_key}] {p.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {/* Navigation Links */}
-      <nav className="flex-1 space-y-1 p-2 overflow-y-auto">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.href;
-          return (
-            <Link
-              key={item.href}
-              to={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-2.5 py-2 text-xs font-medium transition-colors",
-                isActive
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                collapsed && "justify-center px-0"
-              )}
-              title={collapsed ? item.label : undefined}
-            >
-              <item.icon className="h-4 w-4 shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* Footer / Theme & User */}
-      <div className="p-2 border-t border-border/60 space-y-2">
-        {/* Theme Toggles */}
-        <div className={cn("flex items-center justify-between px-2 py-1", collapsed && "justify-center")}>
-          {!collapsed && <span className="text-xs text-muted-foreground font-medium">Theme</span>}
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setTheme("light")}
-              className={cn("p-1 rounded text-muted-foreground hover:text-foreground", theme === "light" && "text-primary")}
-              title="Light mode"
-            >
-              <Sun className="h-3.5 w-3.5" />
-            </button>
-            <button
-              onClick={() => setTheme("dark")}
-              className={cn("p-1 rounded text-muted-foreground hover:text-foreground", theme === "dark" && "text-primary")}
-              title="Dark mode"
-            >
-              <Moon className="h-3.5 w-3.5" />
-            </button>
-            <button
-              onClick={() => setTheme("system")}
-              className={cn("p-1 rounded text-muted-foreground hover:text-foreground", theme === "system" && "text-primary")}
-              title="System preference"
-            >
-              <Laptop className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* User Card */}
-        {user && (
-          <div className={cn("flex items-center justify-between p-2 rounded-lg bg-accent/40 border border-border/40", collapsed && "justify-center p-1.5")}>
-            <div className="flex items-center gap-2 truncate">
-              <Avatar name={user.name} size="sm" />
-              {!collapsed && (
-                <div className="truncate">
-                  <div className="text-xs font-semibold truncate text-foreground">{user.name}</div>
-                  <div className="text-[10px] text-muted-foreground truncate">{user.email}</div>
-                </div>
-              )}
-            </div>
-            {!collapsed && (
-              <button
-                onClick={logout}
-                className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                title="Log out"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    </aside>
+          </label>}
+          {groups.map((group,index) => <section key={t(group.label)} aria-label={t(group.label)}
+            className={cn("space-y-1", index > 0 && "mt-4 border-t border-border pt-4")}>
+            {!collapsed && <h2 className="mb-2 px-3 text-xs font-semibold text-muted-foreground">{t(group.label)}</h2>}
+            {group.items.filter(item=>item.href!=="/backlog" || workflow.data?.sprints!==false).map(({ label, href, icon: Icon }) => <NavLink key={href} to={href} aria-label={label} title={collapsed ? label : undefined}
+              onClick={() => { if (window.innerWidth < 768) setCollapsed(true); }}
+              className={({isActive}) => cn("relative flex min-h-10 items-center gap-3 rounded-md text-sm transition-colors",
+                collapsed ? "justify-center" : "px-3",
+                isActive ? "bg-primary/10 font-semibold text-primary before:absolute before:left-0 before:h-5 before:w-1 before:rounded-r before:bg-primary" : "text-muted-foreground hover:bg-secondary hover:text-foreground")}>
+              <Icon size={18}/>{!collapsed && t(label)}
+            </NavLink>)}
+          </section>)}
+        </nav>
+        <footer className="space-y-3 border-t border-border p-2">
+          {!collapsed && <div className="flex rounded-lg bg-secondary p-1" role="group" aria-label="Appearance">
+            {themes.map(({value,label,icon:Icon}) => <button key={value} onClick={() => setTheme(value)} aria-pressed={theme === value}
+              className="flex flex-1 items-center justify-center gap-1 rounded-md py-2 text-xs text-muted-foreground aria-pressed:bg-card aria-pressed:text-foreground aria-pressed:shadow-sm">
+              <Icon size={13}/>{t(label)}
+            </button>)}
+          </div>}
+          {user && <div className="flex items-center justify-center gap-2">
+            {!collapsed && <><Avatar name={user.name} size="md"/><div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold">{user.name}</p><p className="truncate text-xs text-muted-foreground">{user.email}</p>
+            </div></>}
+            <button onClick={() => setShowLogoutConfirm(true)} title="Log out" className="grid h-9 w-9 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive"><LogOut size={16}/></button>
+          </div>}
+        </footer>
+      </aside>
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={async () => {
+          await logout();
+          setShowLogoutConfirm(false);
+        }}
+        title={t("Confirm logout")}
+        description={t("Are you sure you want to log out? You will need to sign in again to access your account.")}
+        confirmText={t("Log out")}
+        cancelText={t("Cancel")}
+        variant="destructive"
+      />
+    </div>
   );
 }

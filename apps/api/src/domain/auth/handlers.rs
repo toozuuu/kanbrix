@@ -1,9 +1,4 @@
-use axum::{
-    extract::State,
-    http::{header, HeaderMap, HeaderValue, StatusCode},
-    response::IntoResponse,
-    Json,
-};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 use chrono::{Duration, Utc};
 use validator::Validate;
@@ -11,7 +6,7 @@ use validator::Validate;
 use crate::{
     common::{
         auth::{
-            generate_session_token, hash_password, hash_token, verify_password,
+            generate_session_token, hash_password, hash_token, password_work, verify_password,
             AuthenticatedUser, SESSION_COOKIE_NAME,
         },
         error::AppError,
@@ -20,6 +15,7 @@ use crate::{
     domain::auth::dto::{AuthResponse, LoginRequest, RegisterRequest, UserResponse},
 };
 
+#[utoipa::path(post,path="/api/v1/auth/register",request_body=RegisterRequest,responses((status=201,body=AuthResponse)))]
 pub async fn register(
     State(state): State<AppState>,
     jar: CookieJar,
@@ -35,10 +31,13 @@ pub async fn register(
         .map_err(AppError::DatabaseError)?;
 
     if existing.is_some() {
-        return Err(AppError::Conflict("User with this email already exists".into()));
+        return Err(AppError::Conflict(
+            "User with this email already exists".into(),
+        ));
     }
 
-    let password_hash = hash_password(&payload.password)?;
+    let password = payload.password;
+    let password_hash = password_work(move || hash_password(&password)).await?;
 
     let mut tx = state.pool.begin().await.map_err(AppError::DatabaseError)?;
 
@@ -134,13 +133,11 @@ pub async fn register(
 
     Ok((
         updated_jar,
-        (
-            StatusCode::CREATED,
-            Json(AuthResponse { user: user_resp }),
-        ),
+        (StatusCode::CREATED, Json(AuthResponse { user: user_resp })),
     ))
 }
 
+#[utoipa::path(post,path="/api/v1/auth/login",request_body=LoginRequest,responses((status=200,body=AuthResponse)))]
 pub async fn login(
     State(state): State<AppState>,
     jar: CookieJar,
@@ -163,7 +160,24 @@ pub async fn login(
     .map_err(AppError::DatabaseError)?
     .ok_or_else(|| AppError::Unauthorized("Invalid email or password".into()))?;
 
-    let is_valid = verify_password(&payload.password, &user.password_hash)?;
+    let password = payload.password;
+    let attempt = sqlx::query!(
+        "UPDATE users SET
+        login_attempts = CASE WHEN login_window > now() - interval '1 minute'
+                              THEN login_attempts + 1 ELSE 1 END,
+        login_window = CASE WHEN login_window > now() - interval '1 minute'
+                            THEN login_window ELSE now() END
+        WHERE id = $1 AND (login_window IS NULL OR login_window <= now() - interval '1 minute'
+                           OR login_attempts < 10)",
+        user.id
+    )
+    .execute(&state.pool)
+    .await?;
+    if attempt.rows_affected() == 0 {
+        return Err(AppError::AuthBusy);
+    }
+    let hash = user.password_hash;
+    let is_valid = password_work(move || verify_password(&password, &hash)).await?;
     if !is_valid {
         return Err(AppError::Unauthorized("Invalid email or password".into()));
     }
@@ -208,18 +222,19 @@ pub async fn login(
     ))
 }
 
+#[utoipa::path(post,path="/api/v1/auth/logout",responses((status=204)))]
 pub async fn logout(
     State(state): State<AppState>,
     jar: CookieJar,
 ) -> Result<(CookieJar, impl IntoResponse), AppError> {
     if let Some(cookie) = jar.get(SESSION_COOKIE_NAME) {
         let token_hash = hash_token(cookie.value());
-        let _ = sqlx::query!(
+        sqlx::query!(
             "UPDATE sessions SET revoked_at = NOW() WHERE token_hash = $1",
             token_hash
         )
         .execute(&state.pool)
-        .await;
+        .await?;
     }
 
     let mut removal_cookie = Cookie::new(SESSION_COOKIE_NAME, "");
@@ -230,6 +245,7 @@ pub async fn logout(
     Ok((updated_jar, StatusCode::NO_CONTENT))
 }
 
+#[utoipa::path(get,path="/api/v1/auth/me",responses((status=200,body=UserResponse)))]
 pub async fn me(
     auth_user: AuthenticatedUser,
     State(state): State<AppState>,

@@ -1,12 +1,13 @@
+import {useTranslation} from "react-i18next";
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Zap } from "lucide-react";
 import { Input } from "../components/ui/Input";
 import { Button } from "../components/ui/Button";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../components/ui/Toast";
 
 export function LoginPage() {
+  const {t}=useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -32,25 +33,23 @@ export function LoginPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-6">
+      <div className="w-full max-w-md space-y-7">
         <div className="text-center space-y-2">
           <Link to="/" className="inline-flex items-center gap-2 font-bold tracking-tight text-foreground">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground shadow-sm">
-              <Zap className="h-5 w-5" />
-            </div>
+            <img src="/kanbrix.svg" alt="" width="32" height="32" />
             <span className="text-lg">
-              Rust<span className="text-primary">Track</span>
+              Kanbrix
             </span>
           </Link>
-          <h1 className="text-xl font-bold tracking-tight text-foreground">Sign in to your account</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t("Sign in to your account")}</h1>
           <p className="text-xs text-muted-foreground">Enter your credentials below to access your workspaces</p>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-6 shadow-xl space-y-4">
+        <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-sm space-y-4">
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
               type="email"
-              label="Email"
+              label={t("Email")}
               placeholder="alex@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -59,7 +58,7 @@ export function LoginPage() {
 
             <Input
               type="password"
-              label="Password"
+              label={t("Password")}
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -67,7 +66,7 @@ export function LoginPage() {
             />
 
             <Button type="submit" className="w-full" isLoading={isLoading}>
-              Sign In
+              {t("Sign In")}
             </Button>
           </form>
 

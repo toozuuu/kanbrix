@@ -15,8 +15,19 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://localhost:8080',
+        ws: true,
         changeOrigin: true,
       },
+    },
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./src/setupTests.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      exclude: ['node_modules/', 'src/setupTests.ts'],
     },
   },
 });

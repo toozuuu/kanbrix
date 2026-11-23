@@ -10,13 +10,14 @@ use crate::{
     domain::notifications::dto::NotificationResponse,
 };
 
+#[utoipa::path(get,path="/api/v1/notifications",responses((status=200,body=[NotificationResponse])))]
 pub async fn list_notifications(
     auth_user: AuthenticatedUser,
     State(state): State<AppState>,
 ) -> Result<Json<Vec<NotificationResponse>>, AppError> {
     let rows = sqlx::query!(
         r#"
-        SELECT n.id, n.recipient_id, n.actor_id, u.name as actor_name,
+        SELECT n.id, n.recipient_id, n.actor_id, u.name as "actor_name?",
                n.type, n.payload, n.read_at, n.created_at
         FROM notifications n
         LEFT JOIN users u ON n.actor_id = u.id
@@ -47,6 +48,7 @@ pub async fn list_notifications(
     Ok(Json(notifications))
 }
 
+#[utoipa::path(post,path="/api/v1/notifications/{notification_id}/read",params(("notification_id"=Uuid,Path,description="notification id")),responses((status=200)))]
 pub async fn mark_read(
     auth_user: AuthenticatedUser,
     Path(notification_id): Path<Uuid>,

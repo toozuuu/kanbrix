@@ -4,22 +4,31 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
+use super::labels::dto::Label;
+
 #[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct CreateIssueRequest {
-    #[validate(length(min = 2, max = 255, message = "Title must be between 2 and 255 characters"))]
+    pub custom_values: Option<serde_json::Value>,
+    #[validate(length(
+        min = 2,
+        max = 255,
+        message = "Title must be between 2 and 255 characters"
+    ))]
     pub title: String,
     pub description: Option<String>,
-    pub r#type: Option<String>, // Task, Bug, Story, Epic
+    pub r#type: Option<String>,   // Task, Bug, Story, Epic
     pub priority: Option<String>, // Lowest, Low, Medium, High, Urgent
     pub status_id: Uuid,
     pub assignee_id: Option<Uuid>,
     pub parent_issue_id: Option<Uuid>,
     pub sprint_id: Option<Uuid>,
     pub due_date: Option<DateTime<Utc>>,
+    pub labels: Option<Vec<Uuid>>,
 }
 
 #[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct UpdateIssueRequest {
+    pub custom_values: Option<serde_json::Value>,
     pub title: Option<String>,
     pub description: Option<String>,
     pub r#type: Option<String>,
@@ -29,6 +38,7 @@ pub struct UpdateIssueRequest {
     pub sprint_id: Option<Uuid>,
     pub position: Option<f64>,
     pub due_date: Option<DateTime<Utc>>,
+    pub labels: Option<Vec<Uuid>>,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -39,16 +49,26 @@ pub struct ReorderIssueRequest {
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct IssueFilterQuery {
+    pub field_id: Option<String>,
+    pub field_value: Option<String>,
     pub status_id: Option<Uuid>,
     pub assignee_id: Option<Uuid>,
     pub r#type: Option<String>,
     pub priority: Option<String>,
     pub sprint_id: Option<Uuid>,
+    pub label_id: Option<Uuid>,
+    pub label_ids: Option<Vec<Uuid>>,
     pub search: Option<String>,
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+    pub unassigned: Option<bool>,
+    pub recently_updated: Option<bool>,
+    pub due_before: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct IssueResponse {
+    pub custom_values: serde_json::Value,
     pub id: Uuid,
     pub project_id: Uuid,
     pub project_key: String,
@@ -71,4 +91,5 @@ pub struct IssueResponse {
     pub due_date: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub labels: Vec<Label>,
 }

@@ -12,15 +12,15 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::{
     common::state::AppState,
-    domain::{audit, auth, comments, issues, notifications, projects, sprints, workspaces},
+    domain::{audit, auth, comments, issues, labels, notifications, projects, sprints, workspaces},
 };
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(
-    ),
+    paths(issues::report::report,issues::attachments::list,issues::attachments::upload,issues::attachments::download,workspaces::search::search,auth::handlers::register,auth::handlers::login,auth::handlers::logout,auth::handlers::me,issues::handlers::list_project_issues,issues::handlers::create_issue,issues::handlers::get_issue,issues::handlers::update_issue,issues::handlers::reorder_issue,issues::handlers::delete_issue,issues::handlers::issue_counts,projects::handlers::create_project,projects::handlers::list_workspace_projects,projects::handlers::get_project,projects::handlers::update_project,workspaces::handlers::list_workspaces,workspaces::handlers::create_workspace,workspaces::handlers::get_workspace,workspaces::handlers::update_workspace,workspaces::handlers::list_members,workspaces::handlers::invite_member,sprints::handlers::list_project_sprints,sprints::handlers::create_sprint,sprints::handlers::start_sprint,sprints::handlers::complete_sprint,notifications::handlers::list_notifications,notifications::handlers::mark_read,audit::handlers::list_workspace_activity,comments::handlers::list_comments,comments::handlers::create_comment,issues::live::board,labels::handlers::list_labels,labels::handlers::create_label,labels::handlers::delete_label,labels::handlers::add_labels_to_issue,labels::handlers::get_issue_labels),
     components(
         schemas(
+            issues::report::ReportDay,issues::attachments::Attachment,workspaces::search::Hit,issues::handlers::IssueCounts,
             auth::dto::RegisterRequest,
             auth::dto::LoginRequest,
             auth::dto::UserResponse,
@@ -43,18 +43,22 @@ use crate::{
             sprints::dto::CreateSprintRequest,
             sprints::dto::SprintResponse,
             notifications::dto::NotificationResponse,
-            audit::dto::ActivityLogResponse
+            audit::dto::ActivityLogResponse,
+            labels::dto::Label,
+            labels::dto::CreateLabelRequest
         )
     ),
     tags(
         (name = "auth", description = "Authentication and session management"),
+        (name = "realtime", description = "WebSocket real-time board updates"),
         (name = "workspaces", description = "Workspaces and member roles"),
         (name = "projects", description = "Projects and workflow configurations"),
         (name = "issues", description = "Issues, Kanban items, and filters"),
         (name = "comments", description = "Issue discussions and replies"),
         (name = "sprints", description = "Agile sprint planning and execution"),
         (name = "notifications", description = "User notifications"),
-        (name = "audit", description = "Workspace activity timeline")
+        (name = "audit", description = "Workspace activity timeline"),
+        (name = "labels", description = "Issue labels for organization and filtering")
     )
 )]
 pub struct ApiDoc;
@@ -84,6 +88,7 @@ pub fn create_router(state: AppState) -> Router {
         .nest("/workspaces", workspaces::routes())
         .nest("/workspaces", projects::workspace_routes())
         .nest("/workspaces", audit::routes())
+        .nest("/workspaces", labels::routes())
         .nest("/projects", projects::routes())
         .nest("/projects", issues::project_routes())
         .nest("/projects", sprints::project_routes())
@@ -124,12 +129,54 @@ async fn ready_check(
                 "database": "connected"
             })),
         ),
-        Err(err) => (
+        Err(_) => (
             StatusCode::SERVICE_UNAVAILABLE,
             Json(json!({
                 "status": "unhealthy",
-                "database": err.to_string()
+                "database": "unavailable"
             })),
         ),
+    }
+}
+#[cfg(test)]
+mod http_tests {
+    use super::*;
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+    fn router() -> Router {
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .connect_lazy("postgres://localhost/kanbrix_test")
+            .unwrap();
+        create_router(AppState::new(pool, crate::config::AppConfig::from_env()))
+    }
+    #[tokio::test]
+    async fn health_returns_ok_without_database() {
+        let response = router()
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+    #[tokio::test]
+    async fn anonymous_feature_requests_require_authentication() {
+        let app = router();
+        let id = uuid::Uuid::nil();
+        for path in [
+            format!("/api/v1/issues/{id}/attachments"),
+            format!("/api/v1/projects/{id}/report"),
+            format!("/api/v1/workspaces/{id}/search?q=test"),
+        ] {
+            let res = app
+                .clone()
+                .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+        }
     }
 }

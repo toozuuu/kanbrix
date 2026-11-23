@@ -13,6 +13,7 @@ use crate::{
     domain::audit::dto::ActivityLogResponse,
 };
 
+#[utoipa::path(get,path="/api/v1/workspaces/{workspace_id}/activity",params(("workspace_id"=Uuid,Path,description="workspace id")),responses((status=200,body=[ActivityLogResponse])))]
 pub async fn list_workspace_activity(
     auth_user: AuthenticatedUser,
     Path(workspace_id): Path<Uuid>,
@@ -22,7 +23,7 @@ pub async fn list_workspace_activity(
 
     let rows = sqlx::query!(
         r#"
-        SELECT a.id, a.workspace_id, a.actor_id, u.name as actor_name,
+        SELECT a.id, a.workspace_id, a.actor_id, u.name as "actor_name?",
                a.entity_type, a.entity_id, a.action, a.metadata, a.created_at
         FROM activity_logs a
         LEFT JOIN users u ON a.actor_id = u.id

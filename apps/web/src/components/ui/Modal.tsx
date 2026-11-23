@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useId, useRef } from "react";
 import { cn } from "../../lib/utils";
 import { X } from "lucide-react";
 
@@ -19,21 +19,14 @@ export function Modal({
   children,
   maxWidth = "md",
 }: ModalProps) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-      window.addEventListener("keydown", handleKeyDown);
-    }
-
-    return () => {
-      document.body.style.overflow = "unset";
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen, onClose]);
+    const element = dialog.current;
+    if (!isOpen || !element) return;
+    element.showModal();
+    return () => element.close();
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -46,37 +39,28 @@ export function Modal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-background/80 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      />
-
-      {/* Modal Dialog */}
-      <div
-        className={cn(
-          "relative z-50 w-full rounded-xl border border-border bg-card p-6 shadow-2xl transition-all animate-in fade-in-0 zoom-in-95",
-          maxWidths[maxWidth]
-        )}
-      >
+    <dialog ref={dialog} aria-labelledby={titleId}
+      onCancel={(event) => { event.preventDefault(); onClose(); }}
+      onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
+      className={cn("m-auto max-h-[90dvh] w-[calc(100%-2rem)] rounded-2xl border border-border bg-card text-foreground shadow-2xl backdrop:bg-black/45 backdrop:backdrop-blur-sm animate-fade-in", maxWidths[maxWidth])}>
+      <div className="p-5 sm:p-7">
         <div className="flex items-start justify-between pb-4 border-b border-border">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight text-foreground">{title}</h2>
+            <h2 id={titleId} className="text-lg font-semibold tracking-tight text-foreground animate-slide-in from-[opacity:0] from-[translateY:4px] to-[opacity:100] to-[translateY:0] animation-[slideUp_0.15s_ease-out_0.1s_both]">{title}</h2>
             {description && (
-              <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+              <p className="text-xs text-muted-foreground mt-0.5 animate-fade-in from-[opacity:0] from-[translateY:2px] to-[opacity:100] to-[translateY:0] animation-[fadeIn_0.15s_ease-out_0.15s_both]">{description}</p>
             )}
           </div>
           <button
-            onClick={onClose}
-            className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            aria-label="Close dialog" onClick={onClose}
+            className="rounded-full bg-secondary p-2 text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200 transform hover:scale-105 focus:ring-2 focus:ring-ring focus:ring-offset-2"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="mt-4">{children}</div>
+        <div className="mt-4 animate-fade-in from-[opacity:0] from-[translateY:2px] to-[opacity:100] to-[translateY:0] animation-[fadeIn_0.15s_ease-out_0.25s_both]">{children}</div>
       </div>
-    </div>
+    </dialog>
   );
 }

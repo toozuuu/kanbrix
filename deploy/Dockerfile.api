@@ -1,23 +1,46 @@
-# Builder Stage
-FROM rust:1.80-alpine AS builder
+FROM rust:1.91.1-alpine AS builder
 
-RUN apk add --no-cache musl-dev postgresql-dev
+RUN apk add --no-cache curl musl-dev pkgconfig openssl-dev openssl-libs-static postgresql postgresql-contrib postgresql-client
 
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
-COPY apps/api ./apps/api
+COPY apps/api/Cargo.toml ./apps/api/Cargo.toml
 
-WORKDIR /app/apps/api
-RUN cargo build --release
+# Cache dependency compilation independently of application source.
+RUN mkdir -p apps/api/src && echo 'fn main() {}' > apps/api/src/main.rs && \
+    cargo build --locked --release -p rusttrack-api && \
+    cargo clean --release -p rusttrack-api
 
-# Runner Stage
+COPY apps/api/src ./apps/api/src
+COPY apps/api/migrations ./apps/api/migrations
+
+# Check SQLx queries against the actual schema inside the isolated build stage.
+RUN set -eu; \
+    mkdir /tmp/build-db && chown postgres:postgres /tmp/build-db; \
+    su -s /bin/sh postgres -c 'initdb -D /tmp/build-db -A trust' >/dev/null; \
+    su -s /bin/sh postgres -c 'pg_ctl -D /tmp/build-db -l /tmp/build-db/server.log -o "-k /tmp -h 127.0.0.1" -w start'; \
+    export DATABASE_URL=postgres://postgres@127.0.0.1/postgres; \
+    for migration in apps/api/migrations/*.sql; do \
+        case "$migration" in *.down.sql) continue ;; esac; \
+        psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f "$migration"; \
+    done; \
+    cargo build --locked --release -p rusttrack-api; \
+    su -s /bin/sh postgres -c 'pg_ctl -D /tmp/build-db -w stop'; \
+    rm -rf /tmp/build-db
+
 FROM alpine:3.20
 
-RUN apk add --no-cache ca-certificates libpq
+RUN apk add --no-cache ca-certificates tzdata
 
 WORKDIR /app
-COPY --from=builder /app/apps/api/target/release/rusttrack-api /app/rusttrack-api
+
+COPY --from=builder /app/target/release/rusttrack-api /app/rusttrack-api
 COPY --from=builder /app/apps/api/migrations /app/migrations
+
+# Non-root user for security
+RUN addgroup -S rusttrack && adduser -S rusttrack -G rusttrack && \
+    mkdir -p /app/uploads && chown -R rusttrack:rusttrack /app
+USER rusttrack
 
 ENV APP_ENV=production
 ENV SERVER_HOST=0.0.0.0

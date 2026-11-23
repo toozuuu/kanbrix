@@ -1,7 +1,9 @@
 # RustTrack
 target/
 **/*.rs.bk
-Cargo.lock
+# NOTE: Cargo.lock is intentionally committed for this binary application
+# for reproducible builds. See: https://doc.rust-lang.org/cargo/faq.html
+# DO NOT add Cargo.lock to .gitignore for binary crates.
 
 # Node / Frontend
 node_modules/

@@ -1,0 +1,126 @@
+{
+  "app": {
+    "name": "Kanbrix",
+    "loading": "Laddar Kanbrix..."
+  },
+  "navigation": {
+    "dashboard": "Översikt",
+    "board": "Tavla",
+    "backlog": "Backlogg och sprintar",
+    "projects": "Projekt",
+    "team_members": "Medlemmar",
+    "settings": "Inställningar"
+  },
+  "project_views": {
+    "project_views": "Projektvyer"
+  },
+  "workspace": {
+    "workspace": "Arbetsyta",
+    "active_project": "Aktivt projekt"
+  },
+  "theme": {
+    "light": "Ljust",
+    "dark": "Mörkt",
+    "system": "System"
+  },
+  "issues": {
+    "new_issue": "Nytt ärende",
+    "create_issue": "Skapa ärende",
+    "search": "Sök",
+    "all_project_issues": "Alla projektärenden",
+    "total_issues": "Totalt antal ärenden",
+    "assigned_to_you": "Tilldelade till dig",
+    "in_progress": "Pågående",
+    "completed": "Slutförda"
+  },
+  "command_palette": {
+    "type_command_or_search": "Skriv ett kommando eller sök efter ärenden…",
+    "quick_navigation": "Snabbnavigering",
+    "search_workspace": "Sök i arbetsytan"
+  },
+  "issues_detail": {
+    "description": "Beskrivning",
+    "edit_description": "Redigera beskrivning",
+    "save_description": "Spara beskrivning",
+    "cancel": "Avbryt",
+    "summary": "Sammanfattning",
+    "issue_details": "Ärendedetaljer",
+    "project": "Projekt"
+  },
+  "issue_form": {
+    "description_optional": "Beskrivning (valfritt)",
+    "status": "Status",
+    "priority": "Prioritet",
+    "type": "Typ",
+    "save": "Spara",
+    "attachments": "Bilagor",
+    "add_comment": "Skriv en kommentar",
+    "preview": "Förhandsvisa",
+    "write": "Skriv",
+    "bold": "Fetstil",
+    "list": "Lista",
+    "code_block": "Kodblock",
+    "underline": "Understrykning",
+    "highlight": "Markera",
+    "link": "Länk",
+    "image": "Bild",
+    "heading": "Titel",
+    "task_list": "Aktlistor",
+    "task_item": "Aktivitet"
+  },
+  "attachments": {
+    "attachments": "Bilagor",
+    "upload_tip": "Släpp filer här eller klicka för att bläcka (10 MiB varje)",
+    "uploading": "Laddar upp…",
+    "no_attachments": "Ingen historik ännu",
+    "retry": "Försök igen"
+  },
+  "comments": {
+    "comments": "Kommentarer",
+    "add_a_comment": "Skriv en kommentar"
+  },
+  "settings": {
+    "personal_preferences": "Personliga inställningar",
+    "language": "Språk",
+    "browser_language": "Webbläsarens språk",
+    "time_zone": "Tidszon",
+    "save_preferences": "Spara inställningar",
+    "branding": "Varumärke",
+    "calendar": "Kalender",
+    "issue_forms": "Ärendeformulär",
+    "templates": "Mallar",
+    "permissions": "Behörigheter",
+    "history": "Historik"
+  },
+  "reports": {
+    "project_reports": "Projektrapporter",
+    "flow": "Flöde",
+    "burndown": "Återstående arbete",
+    "lead_and_cycle_time": "Ledtid och cykeltid",
+    "loading_report": "Laddar rapport…"
+  },
+  "notifications": {
+    "notifications": "Aviseringar"
+  },
+  "authentication": {
+    "sign_in": "Logga in",
+    "sign_in_to_your_account": "Logga in på ditt konto",
+    "email": "E-post",
+    "password": "Lösenord",
+    "kanban_board": "Kanbantavla",
+    "sign_up": "Skapa konto",
+    "name": "Namn"
+  },
+  "keyboard_shortcuts": {
+    "title": "Tangentkortningar",
+    "open_command_palette": "Öppna kommandopaletten",
+    "create_new_issue": "Skapa nytt ärende",
+    "assign_to_self": "Tilldela utvalt ärende till dig",
+    "go_to_kanban": "Gå till kanbantavlan",
+    "go_to_backlog": "Gå till backloggen och sprintarna",
+    "go_to_projects": "Gå till projekten",
+    "go_to_dashboard": "Gå till översikten",
+    "go_to_members": "Gå till medlemmarna",
+    "help": "Tangentkortningar"
+  }
+}

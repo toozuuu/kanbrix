@@ -18,6 +18,7 @@ use crate::{
     },
 };
 
+#[utoipa::path(get,path="/api/v1/workspaces",responses((status=200,body=[WorkspaceResponse])))]
 pub async fn list_workspaces(
     auth_user: AuthenticatedUser,
     State(state): State<AppState>,
@@ -52,6 +53,7 @@ pub async fn list_workspaces(
     Ok(Json(response))
 }
 
+#[utoipa::path(post,path="/api/v1/workspaces",request_body=CreateWorkspaceRequest,responses((status=201,body=WorkspaceResponse)))]
 pub async fn create_workspace(
     auth_user: AuthenticatedUser,
     State(state): State<AppState>,
@@ -114,6 +116,7 @@ pub async fn create_workspace(
     ))
 }
 
+#[utoipa::path(get,path="/api/v1/workspaces/{workspace_id}",params(("workspace_id"=Uuid,Path,description="workspace id")),responses((status=200,body=WorkspaceResponse)))]
 pub async fn get_workspace(
     auth_user: AuthenticatedUser,
     Path(workspace_id): Path<Uuid>,
@@ -144,6 +147,7 @@ pub async fn get_workspace(
     }))
 }
 
+#[utoipa::path(patch,path="/api/v1/workspaces/{workspace_id}",params(("workspace_id"=Uuid,Path,description="workspace id")),request_body=UpdateWorkspaceRequest,responses((status=200,body=WorkspaceResponse)))]
 pub async fn update_workspace(
     auth_user: AuthenticatedUser,
     Path(workspace_id): Path<Uuid>,
@@ -151,6 +155,13 @@ pub async fn update_workspace(
     Json(payload): Json<UpdateWorkspaceRequest>,
 ) -> Result<Json<WorkspaceResponse>, AppError> {
     let role = verify_workspace_membership(&state.pool, workspace_id, auth_user.id).await?;
+    crate::domain::workspaces::configuration::permit(
+        &state.pool,
+        workspace_id,
+        role.to_str(),
+        "manage_settings",
+    )
+    .await?;
     if !role.can_manage_workspace() {
         return Err(AppError::Forbidden(
             "Only workspace owners and admins can edit workspace details".into(),
@@ -187,6 +198,7 @@ pub async fn update_workspace(
     }))
 }
 
+#[utoipa::path(get,path="/api/v1/workspaces/{workspace_id}/members",params(("workspace_id"=Uuid,Path,description="workspace id")),responses((status=200,body=[WorkspaceMemberResponse])))]
 pub async fn list_members(
     auth_user: AuthenticatedUser,
     Path(workspace_id): Path<Uuid>,
@@ -223,6 +235,7 @@ pub async fn list_members(
     Ok(Json(members))
 }
 
+#[utoipa::path(post,path="/api/v1/workspaces/{workspace_id}/invitations",params(("workspace_id"=Uuid,Path,description="workspace id")),request_body=InviteMemberRequest,responses((status=200)))]
 pub async fn invite_member(
     auth_user: AuthenticatedUser,
     Path(workspace_id): Path<Uuid>,
@@ -230,6 +243,13 @@ pub async fn invite_member(
     Json(payload): Json<InviteMemberRequest>,
 ) -> Result<StatusCode, AppError> {
     let role = verify_workspace_membership(&state.pool, workspace_id, auth_user.id).await?;
+    crate::domain::workspaces::configuration::permit(
+        &state.pool,
+        workspace_id,
+        role.to_str(),
+        "manage_members",
+    )
+    .await?;
     if !role.can_manage_workspace() {
         return Err(AppError::Forbidden(
             "Only workspace owners and admins can invite members".into(),

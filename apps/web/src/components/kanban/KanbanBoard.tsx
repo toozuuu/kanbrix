@@ -9,9 +9,8 @@ import {
   useSensors,
   DragStartEvent,
   DragEndEvent,
-  DragOverEvent,
 } from "@dnd-kit/core";
-import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { Issue, IssueStatus } from "../../types";
 import { KanbanColumn } from "./KanbanColumn";
 import { IssueCard } from "./IssueCard";
@@ -21,6 +20,8 @@ import { useToast } from "../ui/Toast";
 interface KanbanBoardProps {
   statuses: IssueStatus[];
   issues: Issue[];
+  nextPositions: Map<string, number>;
+  loadMore: (id: string) => void;
   onIssueClick: (issue: Issue) => void;
   onAddIssueToStatus: (statusId: string) => void;
   onRefresh: () => void;
@@ -29,6 +30,7 @@ interface KanbanBoardProps {
 export function KanbanBoard({
   statuses,
   issues: initialIssues,
+  nextPositions, loadMore,
   onIssueClick,
   onAddIssueToStatus,
   onRefresh,
@@ -58,115 +60,53 @@ export function KanbanBoard({
     if (issue) setActiveIssue(issue);
   };
 
-  const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event;
-    if (!over) return;
+  const issuesByStatus = React.useMemo(() => {
+    const columns = new Map<string, Issue[]>();
+    for (const issue of issues) {
+      const column = columns.get(issue.status_id);
+      if (column) column.push(issue);
+      else columns.set(issue.status_id, [issue]);
+    }
+    for (const column of columns.values()) {
+      column.sort((a, b) => a.position - b.position);
+    }
+    return columns;
+  }, [issues]);
+
+  const handleDragEnd = async ({ active, over }: DragEndEvent) => {
+    setActiveIssue(null);
+    if (!over || active.id === over.id) return;
 
     const activeId = active.id;
-    const overId = over.id;
+    const issue = issues.find((item) => item.id === activeId);
+    const targetCard: Issue | undefined = over.data.current?.issue;
+    const status = statuses.find((item) => item.id === (targetCard?.status_id ?? over.id));
+    if (!issue || !status) return;
 
-    if (activeId === overId) return;
+    const column = issuesByStatus.get(status.id) ?? [];
+    const remaining = column.filter((item) => item.id !== activeId);
+    const index = targetCard ? column.findIndex((item) => item.id === targetCard.id) : remaining.length;
+    if (index < 0 || (issue.status_id === status.id && column[index]?.id === activeId)) return;
 
-    // Check if dragging over another issue or directly over a column status
-    const isActiveAnIssue = active.data.current?.issue !== undefined;
-    const isOverAnIssue = over.data.current?.issue !== undefined;
-    const isOverAStatus = over.data.current?.status !== undefined;
-
-    if (!isActiveAnIssue) return;
-
-    // Moving over another issue in a different column
-    if (isOverAnIssue) {
-      const activeIssue = issues.find((i) => i.id === activeId);
-      const overIssue = issues.find((i) => i.id === overId);
-
-      if (activeIssue && overIssue && activeIssue.status_id !== overIssue.status_id) {
-        setIssues((prev) => {
-          const activeIndex = prev.findIndex((i) => i.id === activeId);
-          const overIndex = prev.findIndex((i) => i.id === overId);
-
-          const updated = [...prev];
-          updated[activeIndex] = {
-            ...updated[activeIndex],
-            status_id: overIssue.status_id,
-            status_name: overIssue.status_name,
-            status_category: overIssue.status_category,
-          };
-
-          return arrayMove(updated, activeIndex, overIndex);
-        });
-      }
-    }
-
-    // Moving directly over an empty column or status container
-    if (isOverAStatus) {
-      const statusId = over.id as string;
-      const statusObj = statuses.find((s) => s.id === statusId);
-
-      if (statusObj) {
-        setIssues((prev) => {
-          const activeIndex = prev.findIndex((i) => i.id === activeId);
-          if (activeIndex === -1) return prev;
-
-          const updated = [...prev];
-          if (updated[activeIndex].status_id !== statusId) {
-            updated[activeIndex] = {
-              ...updated[activeIndex],
-              status_id: statusId,
-              status_name: statusObj.name,
-              status_category: statusObj.category,
-            };
-          }
-          return updated;
-        });
-      }
-    }
-  };
-
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveIssue(null);
-
-    if (!over) return;
-
-    const activeId = active.id as string;
-
-    const currentIssue = issues.find((i) => i.id === activeId);
-    if (!currentIssue) return;
-
-    const currentStatusId = currentIssue.status_id;
-
-    // Get ordered issues in target status
-    const columnIssues = issues.filter((i) => i.status_id === currentStatusId);
-    const activeIndex = columnIssues.findIndex((i) => i.id === activeId);
-
-    // Calculate new position
-    let newPosition = 1000.0;
-    if (columnIssues.length === 1) {
-      newPosition = 1000.0;
-    } else if (activeIndex === 0) {
-      const nextPos = columnIssues[1]?.position || 2000.0;
-      newPosition = nextPos / 2.0;
-    } else if (activeIndex === columnIssues.length - 1) {
-      const prevPos = columnIssues[activeIndex - 1]?.position || 1000.0;
-      newPosition = prevPos + 1000.0;
-    } else {
-      const prevPos = columnIssues[activeIndex - 1]?.position || 1000.0;
-      const nextPos = columnIssues[activeIndex + 1]?.position || prevPos + 2000.0;
-      newPosition = (prevPos + nextPos) / 2.0;
-    }
-
-    // Apply optimistic update locally
-    setIssues((prev) =>
-      prev.map((i) => (i.id === activeId ? { ...i, position: newPosition } : i))
-    );
+    const before = remaining[index - 1]?.position;
+    const after = remaining[index]?.position ?? nextPositions.get(status.id);
+    const newPosition = before === undefined
+      ? (after === undefined ? 1000 : after / 2)
+      : (after === undefined ? before + 1000 : (before + after) / 2);
+    const currentStatusId = status.id;
+    setIssues((prev) => prev.map((item) => item.id === activeId
+      ? { ...item, status_id: status.id, status_name: status.name, status_category: status.category, position: newPosition }
+      : item));
 
     // Persist to server
     try {
-      await api.issues.reorder(activeId, {
+      await api.issues.reorder(issue.id, {
         status_id: currentStatusId,
         position: newPosition,
       });
-    } catch (err: any) {
+      onRefresh();
+    } catch {
+      setIssues(initialIssues);
       toast("Failed to update issue order on server", "error");
       onRefresh(); // rollback to server state
     }
@@ -177,20 +117,19 @@ export function KanbanBoard({
       sensors={sensors}
       collisionDetection={closestCorners}
       onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
+      onDragCancel={() => setActiveIssue(null)}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex h-full gap-4 overflow-x-auto pb-4 items-start">
+      <div className="flex h-full gap-4 sm:gap-5 overscroll-x-contain overflow-x-auto pb-4 items-start">
         {statuses.map((status) => {
-          const columnIssues = issues
-            .filter((i) => i.status_id === status.id)
-            .sort((a, b) => a.position - b.position);
+          const columnIssues = issuesByStatus.get(status.id) ?? [];
 
           return (
             <KanbanColumn
               key={status.id}
               status={status}
               issues={columnIssues}
+              loadMore={nextPositions.has(status.id) ? () => loadMore(status.id) : undefined}
               onIssueClick={onIssueClick}
               onAddIssueToStatus={onAddIssueToStatus}
             />

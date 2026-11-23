@@ -1,5 +1,9 @@
+import { useDropdownDisclosure } from "../ui/useDropdownDisclosure";
+import {useTranslation} from "react-i18next";
+import { useConfiguration } from "../../context/useConfiguration";
+import { Link } from "react-router-dom";
 import { useState } from "react";
-import { Search, Plus, Bell, Check } from "lucide-react";
+import { Search, Plus, Bell, Check, HelpCircle } from "lucide-react";
 import { Button } from "../ui/Button";
 import { useWorkspace } from "../../context/WorkspaceContext";
 import { api } from "../../lib/api";
@@ -9,12 +13,16 @@ import { formatRelativeTime } from "../../lib/utils";
 interface HeaderProps {
   onOpenCreateIssue: () => void;
   onOpenCommandPalette: () => void;
+  onOpenKeyboardShortcuts: () => void;
 }
 
-export function Header({ onOpenCreateIssue, onOpenCommandPalette }: HeaderProps) {
+export function Header({ onOpenCreateIssue, onOpenCommandPalette, onOpenKeyboardShortcuts }: HeaderProps) {
+  const {t}=useTranslation();
+  const cfg=useConfiguration().data?.configuration;
   const { currentProject, currentWorkspace } = useWorkspace();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const disclosure = useDropdownDisclosure(showNotifications, setShowNotifications);
   const [hasFetched, setHasFetched] = useState(false);
 
   const fetchNotifications = async () => {
@@ -48,9 +56,9 @@ export function Header({ onOpenCreateIssue, onOpenCommandPalette }: HeaderProps)
   const unreadCount = notifications.filter((n) => !n.read_at).length;
 
   return (
-    <header className="flex h-14 items-center justify-between border-b border-border/60 bg-card/40 px-6 backdrop-blur-md">
-      {/* Project breadcrumb / info */}
-      <div className="flex items-center gap-2">
+    <header className="flex h-14 shrink-0 gap-2 items-center justify-between border-b border-border/60 bg-card px-3 sm:px-6">
+      <Link to="/dashboard" className="flex shrink-0 items-center gap-2 text-lg font-semibold"><img referrerPolicy="no-referrer" src={cfg?.logo || "/kanbrix.svg"} alt="" width="32" height="32" />{cfg?.brand || "Kanbrix"}</Link>
+      <div className="hidden min-w-0 flex-1 ml-4 items-center gap-2 md:flex">
         <span className="text-xs text-muted-foreground">{currentWorkspace?.name}</span>
         <span className="text-muted-foreground/50">/</span>
         <span className="text-xs font-semibold text-foreground">
@@ -67,24 +75,25 @@ export function Header({ onOpenCreateIssue, onOpenCommandPalette }: HeaderProps)
       <div className="flex items-center gap-3">
         {/* Command Search Bar */}
         <button
-          onClick={onOpenCommandPalette}
-          className="flex items-center gap-3 rounded-lg border border-border/60 bg-background/50 px-3 py-1.5 text-xs text-muted-foreground hover:border-border hover:bg-accent transition-all w-56 justify-between shadow-sm"
+          aria-label="Search issues" onClick={onOpenCommandPalette}
+          className="flex items-center gap-3 rounded-lg border border-border/60 bg-background/50 px-3 py-1.5 text-xs text-muted-foreground hover:border-border hover:bg-accent transition-all sm:w-56 justify-between shadow-sm"
         >
           <div className="flex items-center gap-2">
             <Search className="h-3.5 w-3.5" />
-            <span>Search issues...</span>
+            <span className="hidden sm:inline">Search issues…</span>
           </div>
-          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
+          <kbd className="hidden sm:inline rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
             Ctrl+K
           </kbd>
         </button>
 
         {/* Notifications */}
-        <div className="relative">
+        <div className="relative" {...disclosure.container}>
           <button
+            {...disclosure.trigger}
             onClick={handleToggleNotifications}
             className="relative rounded-lg p-2 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors border border-border/40"
-            title="Notifications"
+            title={t("Notifications")}
           >
             <Bell className="h-4 w-4" />
             {unreadCount > 0 && (
@@ -95,9 +104,9 @@ export function Header({ onOpenCreateIssue, onOpenCommandPalette }: HeaderProps)
           {showNotifications && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
-              <div className="absolute right-0 mt-2 z-50 w-80 rounded-xl border border-border bg-popover p-2 shadow-2xl animate-in fade-in-0 zoom-in-95">
+              <div {...disclosure.panel} className="dropdown-surface fixed inset-x-3 top-14 z-50 sm:absolute sm:inset-auto sm:right-0 sm:mt-2 sm:w-80 ">
                 <div className="flex items-center justify-between px-3 py-2 border-b border-border/60">
-                  <span className="text-xs font-semibold text-foreground">Notifications</span>
+                  <span className="text-xs font-semibold text-foreground">{t("Notifications")}</span>
                   {unreadCount > 0 && (
                     <span className="text-[10px] bg-primary/10 text-primary font-semibold px-2 py-0.5 rounded-full">
                       {unreadCount} unread
@@ -147,7 +156,18 @@ export function Header({ onOpenCreateIssue, onOpenCommandPalette }: HeaderProps)
         {/* Quick New Issue Action */}
         <Button size="sm" onClick={onOpenCreateIssue} className="gap-1.5">
           <Plus className="h-3.5 w-3.5" />
-          <span>New Issue</span>
+          <span>{t("New Issue")}</span>
+        </Button>
+
+        {/* Keyboard Shortcuts Help */}
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={onOpenKeyboardShortcuts}
+          className="gap-1.5"
+          title={t("keyboard_shortcuts.help")}
+        >
+          <HelpCircle className="h-3.5 w-3.5" />
         </Button>
       </div>
     </header>

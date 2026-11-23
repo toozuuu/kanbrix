@@ -1,7 +1,17 @@
+import { SelectBox } from "../ui/SelectBox";
+import {useTranslation} from "react-i18next";
+import {Attachments} from "./Attachments";
+import {Markdown,MarkdownEditor} from "../MarkdownEditor";
 import React, { useState, useEffect } from "react";
+import { useIssueForm } from "../../context/useIssueForm";
+import { useWorkspace } from "../../context/WorkspaceContext";
+import { CustomFields } from "../CustomFields";
+import type { Values } from "../../types/configuration";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import { Avatar } from "../ui/Avatar";
+import { Badge } from "../ui/Badge";
+import { LabelBadge } from "../ui/LabelBadge";
 import { Issue, Comment, IssueStatus, IssuePriority, IssueType } from "../../types";
 import { api } from "../../lib/api";
 import { useToast } from "../ui/Toast";
@@ -25,19 +35,31 @@ export function IssueDetailModal({
   onIssueUpdated,
   onIssueDeleted,
 }: IssueDetailModalProps) {
+  const {t}=useTranslation();
+  const cfg=useIssueForm();
+  const { labels: workspaceLabels } = useWorkspace();
+  const [formKind,setFormKind]=useState<IssueType>("Task");
+  const [values,setValues]=useState<Values>({});
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [title, setTitle] = useState("");
+  const [editingDescription,editDescription]=useState(false);
   const [description, setDescription] = useState("");
+  const [isEditingLabels, setIsEditingLabels] = useState(false);
+  const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
     if (issue) {
+      setFormKind(issue.type);
+      setValues(issue.custom_values??{});
       setTitle(issue.title);
+      editDescription(false);
       setDescription(issue.description || "");
+      setSelectedLabels(issue.labels.map(l => l.id));
       loadComments(issue.id);
     }
   }, [issue]);
@@ -51,9 +73,18 @@ export function IssueDetailModal({
     }
   };
 
+  const handleToggleLabel = (labelId: string) => {
+    setSelectedLabels(prev =>
+      prev.includes(labelId)
+        ? prev.filter(id => id !== labelId)
+        : [...prev, labelId]
+    );
+  };
+
   if (!issue) return null;
 
   const handleUpdate = async (fields: {
+    custom_values?:Values;
     title?: string;
     description?: string;
     type?: IssueType;
@@ -62,6 +93,7 @@ export function IssueDetailModal({
     assignee_id?: string | null;
     sprint_id?: string | null;
     due_date?: string | null;
+    labels?: string[];
   }) => {
     try {
       setIsUpdating(true);
@@ -70,6 +102,19 @@ export function IssueDetailModal({
       toast("Issue updated", "success");
     } catch (err: any) {
       toast(err.message || "Failed to update issue", "error");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleSaveLabels = async () => {
+    try {
+      setIsUpdating(true);
+      await api.issueLabels.set(issue.id, selectedLabels);
+      onIssueUpdated();
+      toast("Labels updated", "success");
+    } catch (err: any) {
+      toast(err.message || "Failed to update labels", "error");
     } finally {
       setIsUpdating(false);
     }
@@ -122,7 +167,7 @@ export function IssueDetailModal({
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full text-base font-semibold px-2 py-1 rounded border border-input bg-background/50 focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full text-base font-semibold px-2 py-1 rounded border border-input bg-card focus:outline-none focus:ring-1 focus:ring-primary"
               />
               <Button
                 size="sm"
@@ -131,7 +176,7 @@ export function IssueDetailModal({
                   setIsEditingTitle(false);
                 }}
               >
-                Save
+                {t("Save")}
               </Button>
             </div>
           ) : (
@@ -160,70 +205,138 @@ export function IssueDetailModal({
           {/* Status selector */}
           <div className="space-y-1">
             <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
-              Status
+              {t("Status")}
             </span>
-            <select
+            <SelectBox fullWidth compact
+              aria-label={t("Status")}
               value={issue.status_id}
               onChange={(e) => handleUpdate({ status_id: e.target.value })}
               disabled={isUpdating}
-              className="w-full h-8 rounded border border-input bg-background/60 px-2 font-medium focus:outline-none focus:ring-1 focus:ring-primary"
             >
               {statuses.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
                 </option>
               ))}
-            </select>
+            </SelectBox>
           </div>
 
           {/* Priority selector */}
           <div className="space-y-1">
             <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
-              Priority
+              {t("Priority")}
             </span>
-            <select
+            <SelectBox fullWidth compact
+              aria-label={t("Priority")}
               value={issue.priority}
               onChange={(e) => handleUpdate({ priority: e.target.value as IssuePriority })}
               disabled={isUpdating}
-              className="w-full h-8 rounded border border-input bg-background/60 px-2 font-medium focus:outline-none focus:ring-1 focus:ring-primary"
             >
-              <option value="Lowest">Lowest</option>
-              <option value="Low">Low</option>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
-              <option value="Urgent">Urgent</option>
-            </select>
+              {Array.from(new Set([issue.priority,...(cfg?.priorities??[])])).map(v=><option key={v}>{v}</option>)}
+            </SelectBox>
           </div>
 
           {/* Type selector */}
           <div className="space-y-1">
             <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
-              Type
+              {t("Type")}
             </span>
-            <select
-              value={issue.type}
-              onChange={(e) => handleUpdate({ type: e.target.value as IssueType })}
+            <SelectBox fullWidth compact
+              aria-label={t("Type")}
+              value={formKind}
+              onChange={(e) => setFormKind(e.target.value as IssueType)}
               disabled={isUpdating}
-              className="w-full h-8 rounded border border-input bg-background/60 px-2 font-medium focus:outline-none focus:ring-1 focus:ring-primary"
             >
-              <option value="Task">Task</option>
-              <option value="Bug">Bug</option>
-              <option value="Story">Story</option>
-              <option value="Epic">Epic</option>
-            </select>
+              {Array.from(new Set([issue.type,...(cfg?.types??[])])).map(v=><option key={v}>{v}</option>)}
+            </SelectBox>
           </div>
         </div>
 
+        {/* Labels Section */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-foreground uppercase tracking-wider">
+              {t("Labels")}
+            </label>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsEditingLabels(!isEditingLabels)}
+              className="text-xs h-6 px-2"
+            >
+              {isEditingLabels ? "Done" : "Edit"}
+            </Button>
+          </div>
+
+          {issue.labels.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {issue.labels.map((label) => (
+                <LabelBadge key={label.id} label={label} />
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground/60 italic">No labels</p>
+          )}
+
+          {/* Label selection when editing */}
+          {isEditingLabels && (
+            <div className="mt-2 p-3 rounded-lg border border-border bg-secondary/40">
+              {workspaceLabels.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {workspaceLabels.map((label) => (
+                    <label key={label.id} className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedLabels.includes(label.id)}
+                        onChange={() => handleToggleLabel(label.id)}
+                        className="h-3.5 w-3.5 rounded border border-input text-primary focus:ring-primary/20"
+                      />
+                      <Badge
+                        variant="outline"
+                        style={{
+                          backgroundColor: label.color.startsWith('#') ? label.color : undefined,
+                          borderColor: label.color.startsWith('#') ? label.color : '#d1d5db',
+                          color: label.color.startsWith('#') ? 'white' : undefined,
+                        }}
+                        className="text-xs"
+                      >
+                        {label.name}
+                      </Badge>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground/60 italic">No labels available in this workspace</p>
+              )}
+              <Button
+                size="sm"
+                className="mt-2"
+                onClick={handleSaveLabels}
+                disabled={isUpdating}
+              >
+                Save Labels
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {Object.entries(issue.custom_values??{}).some(([id])=>cfg && !cfg.fields.some(f=>f.id===id)) && <details><summary>Archived field values</summary>{Object.entries(issue.custom_values??{}).filter(([id])=>!cfg?.fields.some(f=>f.id===id)).map(([id,value])=><p key={id} className="text-sm">{id}: {String(value??"")}</p>)}</details>}
+        {(!!cfg?.fields.length || formKind!==issue.type) && <form className="space-y-3" onSubmit={e=>{e.preventDefault();void handleUpdate({type:formKind,custom_values:values});}}>
+          <CustomFields fields={cfg?.fields??[]} kind={formKind} values={values} change={setValues}/>
+          <Button size="sm" disabled={isUpdating}>Save issue form</Button>
+        </form>}
         {/* Description Section */}
         <div className="space-y-2">
           <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
-            Description
+            {t("Description")}
           </label>
-          <div className="rounded-lg border border-border/60 bg-background/40 p-3 min-h-[90px] text-xs leading-relaxed text-foreground whitespace-pre-wrap">
-            {description || <span className="text-muted-foreground italic">No description provided.</span>}
-          </div>
+          {editingDescription ? <><MarkdownEditor label={t("Edit description")} value={description} onChange={setDescription}/>
+            <Button size="sm" disabled={isUpdating} onClick={()=>handleUpdate({description})}>{t("Save description")}</Button>
+            <Button size="sm" variant="ghost" onClick={()=>{setDescription(issue.description??"");editDescription(false);}}>{t("Cancel")}</Button></>
+            : <><Markdown text={description || "No description provided."}/><button className="text-xs underline" onClick={()=>editDescription(true)}>{t("Edit description")}</button></>}
         </div>
 
+        <Attachments issue={issue.id}/>
         {/* Discussion / Comments Section */}
         <div className="space-y-3 pt-3 border-t border-border/60">
           <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
@@ -243,7 +356,7 @@ export function IssueDetailModal({
                       {formatRelativeTime(c.created_at)}
                     </span>
                   </div>
-                  <p className="text-muted-foreground leading-normal whitespace-pre-wrap">{c.body}</p>
+                  <Markdown text={c.body}/>
                 </div>
               </div>
             ))}
@@ -257,13 +370,7 @@ export function IssueDetailModal({
 
           {/* Add comment input */}
           <form onSubmit={handleAddComment} className="flex gap-2 items-center">
-            <input
-              type="text"
-              placeholder="Add a comment..."
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              className="flex-1 h-9 rounded-md border border-input bg-background/50 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-            />
+            <MarkdownEditor label={t("Add a comment")} value={newComment} onChange={setNewComment}/>
             <Button size="sm" type="submit" isLoading={isSubmittingComment} className="gap-1">
               <Send className="h-3.5 w-3.5" />
               <span>Post</span>

@@ -1,0 +1,41 @@
+# SQLx Offline Query Cache Preparation
+# ─────────────────────────────────────────────────────────────────────────────
+# Generates apps/api/.sqlx/ — the query metadata cache for SQLX_OFFLINE=true.
+# This must be re-run whenever sqlx::query!() macros change.
+#
+# Usage:
+#   docker compose -f docker-compose.prepare.yml run --rm sqlx-prepare
+#
+# Or with PowerShell helper:
+#   .\scripts\sqlx-prepare.ps1
+#
+# After running, commit apps/api/.sqlx/:
+#   git add apps/api/.sqlx/
+#   git commit -m "chore: update sqlx offline query cache"
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  postgres-prepare:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: rusttrack_prepare
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: prepare_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d rusttrack_prepare"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+
+  sqlx-prepare:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.prepare
+    depends_on:
+      postgres-prepare:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://postgres:prepare_password@postgres-prepare:5432/rusttrack_prepare
+    # Mount the host .sqlx/ directory so the generated files persist on host
+    volumes:
+      - ./apps/api/.sqlx:/app/apps/api/.sqlx

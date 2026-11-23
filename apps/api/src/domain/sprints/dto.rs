@@ -6,7 +6,11 @@ use validator::Validate;
 
 #[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct CreateSprintRequest {
-    #[validate(length(min = 2, max = 100, message = "Sprint name must be between 2 and 100 characters"))]
+    #[validate(length(
+        min = 2,
+        max = 100,
+        message = "Sprint name must be between 2 and 100 characters"
+    ))]
     pub name: String,
     pub goal: Option<String>,
     pub start_date: Option<DateTime<Utc>>,

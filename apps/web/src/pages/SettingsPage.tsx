@@ -1,3 +1,7 @@
+import { PersonalSettings } from "./PersonalSettings";
+import { WorkflowSettings } from "./WorkflowSettings";
+import { IntegrationSettings } from "./IntegrationSettings";
+import { OrganizationSettings } from "./OrganizationSettings";
 import React, { useState } from "react";
 import { useWorkspace } from "../context/WorkspaceContext";
 import { useAuth } from "../context/AuthContext";
@@ -42,7 +46,7 @@ export function SettingsPage() {
       </div>
 
       {/* Workspace Settings Card */}
-      <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-sm">
+      <div className="rounded-2xl border border-border bg-card p-5 space-y-4 shadow-sm">
         <div className="flex items-center gap-2">
           <Settings className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-semibold text-foreground">Workspace Profile</h2>
@@ -74,8 +78,12 @@ export function SettingsPage() {
         </form>
       </div>
 
+      <PersonalSettings/>
+      <OrganizationSettings/>
+      <WorkflowSettings/>
+      <IntegrationSettings/>
       {/* User Account Card */}
-      <div className="rounded-xl border border-border bg-card p-5 space-y-3 shadow-sm">
+      <div className="rounded-2xl border border-border bg-card p-5 space-y-3 shadow-sm">
         <div className="flex items-center gap-2">
           <Shield className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-semibold text-foreground">Your Account</h2>
@@ -93,7 +101,7 @@ export function SettingsPage() {
       </div>
 
       {/* System Information */}
-      <div className="rounded-xl border border-border bg-card p-5 space-y-3 shadow-sm">
+      <div className="rounded-2xl border border-border bg-card p-5 space-y-3 shadow-sm">
         <div className="flex items-center gap-2">
           <Server className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-semibold text-foreground">System & Architecture</h2>

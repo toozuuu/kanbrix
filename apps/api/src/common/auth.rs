@@ -4,11 +4,7 @@ use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
 };
-use axum::{
-    async_trait,
-    extract::FromRequestParts,
-    http::request::Parts,
-};
+use axum::{async_trait, extract::FromRequestParts, http::request::Parts};
 use axum_extra::extract::cookie::CookieJar;
 use chrono::Utc;
 use rand::RngCore;
@@ -21,7 +17,6 @@ pub const SESSION_COOKIE_NAME: &str = "rusttrack_session";
 pub struct AuthenticatedUser {
     pub id: Uuid,
     pub name: String,
-    pub email: String,
     pub avatar_url: Option<String>,
 }
 
@@ -60,10 +55,19 @@ impl WorkspaceRole {
     pub fn can_edit_project(&self) -> bool {
         matches!(self, Self::Owner | Self::Admin | Self::Member)
     }
+}
 
-    pub fn can_edit_issues(&self) -> bool {
-        matches!(self, Self::Owner | Self::Admin | Self::Member)
-    }
+pub async fn password_work<T: Send + 'static>(
+    work: impl FnOnce() -> Result<T, AppError> + Send + 'static,
+) -> Result<T, AppError> {
+    static SLOTS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(4);
+    let slot = SLOTS.try_acquire().map_err(|_| AppError::AuthBusy)?;
+    tokio::task::spawn_blocking(move || {
+        let _slot = slot;
+        work()
+    })
+    .await
+    .map_err(|_| AppError::Internal("Password worker failed".into()))?
 }
 
 pub fn hash_password(password: &str) -> Result<String, AppError> {
@@ -76,8 +80,8 @@ pub fn hash_password(password: &str) -> Result<String, AppError> {
 }
 
 pub fn verify_password(password: &str, hash: &str) -> Result<bool, AppError> {
-    let parsed_hash = PasswordHash::new(hash)
-        .map_err(|e| AppError::PasswordHashError(e.to_string()))?;
+    let parsed_hash =
+        PasswordHash::new(hash).map_err(|e| AppError::PasswordHashError(e.to_string()))?;
     Ok(Argon2::default()
         .verify_password(password.as_bytes(), &parsed_hash)
         .is_ok())
@@ -128,7 +132,7 @@ impl FromRequestParts<AppState> for AuthenticatedUser {
         let user = sqlx::query_as!(
             UserRow,
             r#"
-            SELECT u.id, u.name, u.email, u.avatar_url
+            SELECT u.id, u.name, u.avatar_url
             FROM sessions s
             JOIN users u ON s.user_id = u.id
             WHERE s.token_hash = $1
@@ -146,7 +150,6 @@ impl FromRequestParts<AppState> for AuthenticatedUser {
         Ok(AuthenticatedUser {
             id: user.id,
             name: user.name,
-            email: user.email,
             avatar_url: user.avatar_url,
         })
     }
@@ -155,7 +158,6 @@ impl FromRequestParts<AppState> for AuthenticatedUser {
 struct UserRow {
     id: Uuid,
     name: String,
-    email: String,
     avatar_url: Option<String>,
 }
 

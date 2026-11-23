@@ -1,0 +1,37 @@
+# Node modules
+apps/web/node_modules/
+
+# Rust build artifacts
+apps/api/target/
+target/
+
+# Git metadata
+.git/
+.gitignore
+
+# Editor and OS files
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
+
+# Env files with secrets
+.env
+.env.local
+.env.*.local
+
+# Test artifacts
+coverage/
+*.log
+
+# CI
+.github/
+
+# Documentation (not needed in image)
+docs/
+*.md
+!README.md
+
+# Local scripts
+scripts/setup.ps1
+scripts/setup.sh
