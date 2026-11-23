@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use axum::{
     extract::{Path, Query, State},
@@ -11,15 +11,13 @@ use validator::Validate;
 use crate::{
     common::{auth::AuthenticatedUser, error::AppError, state::AppState},
     domain::issues::dto::{
-        CreateIssueRequest, IssueFilterQuery, IssueResponse, Label, ReorderIssueRequest,
+        CreateIssueRequest, IssueFilterQuery, IssueResponse, ReorderIssueRequest,
         UpdateIssueRequest,
     },
+    domain::labels::dto::Label,
 };
 
-async fn fetch_issue_labels(
-    issue_id: Uuid,
-    pool: &sqlx::PgPool,
-) -> Result<Vec<Label>, AppError> {
+async fn fetch_issue_labels(issue_id: Uuid, pool: &sqlx::PgPool) -> Result<Vec<Label>, AppError> {
     sqlx::query_as::<_, Label>(
         r#"
         SELECT l.id, l.workspace_id, l.name, l.color
@@ -95,6 +93,12 @@ pub async fn list_project_issues(
           AND ($9::timestamptz IS NULL OR (s.category <> 'Done' AND i.due_date < $9))
           AND (($10::text IS NULL OR $11::text IS NULL) OR (i.custom_values->>$10)=$11 OR (jsonb_typeof(i.custom_values->$10)='array' AND (i.custom_values->$10) ? $11))
           AND ($12::boolean IS NOT TRUE OR i.updated_at >= CURRENT_TIMESTAMP - INTERVAL '24 hours')
+          AND ($15::uuid IS NULL OR EXISTS (
+              SELECT 1 FROM issue_labels il WHERE il.issue_id = i.id AND il.label_id = $15
+          ))
+          AND ($16::uuid[] IS NULL OR $16 <@ ARRAY(
+              SELECT il.label_id FROM issue_labels il WHERE il.issue_id = i.id
+          ))
         ORDER BY i.position, i.created_at, i.id
         LIMIT $13 OFFSET $14
         "#,
@@ -111,82 +115,39 @@ pub async fn list_project_issues(
         filters.field_value,
         filters.recently_updated.unwrap_or(false),
         filters.limit.map(|limit| limit.clamp(1, 101)),
-        filters.offset.unwrap_or(0).max(0)
+        filters.offset.unwrap_or(0).max(0),
+        filters.label_id,
+        filters.label_ids.as_deref(),
+    )
     .fetch_all(&state.pool)
     .await
     .map_err(AppError::DatabaseError)?;
 
-    // Collect issue IDs for batch label fetching and apply label filtering
-    let filter_by_labels = filters.label_id.is_some()
-        || filters.label_ids.as_ref().map(|l| !l.is_empty()).unwrap_or(false);
+    let issue_ids: Vec<Uuid> = rows.iter().map(|row| row.id).collect();
+    let all_labels = sqlx::query_as::<_, (Uuid, Uuid, Uuid, String, String)>(
+        r#"
+        SELECT il.issue_id, l.id, l.workspace_id, l.name, l.color
+        FROM issue_labels il
+        JOIN labels l ON l.id = il.label_id
+        WHERE il.issue_id = ANY($1)
+        ORDER BY l.name
+        "#,
+    )
+    .bind(&issue_ids)
+    .fetch_all(&state.pool)
+    .await
+    .map_err(AppError::DatabaseError)?;
+    let mut labels_map: HashMap<Uuid, Vec<Label>> = HashMap::new();
+    for (issue_id, id, workspace_id, name, color) in all_labels {
+        labels_map.entry(issue_id).or_default().push(Label {
+            id,
+            workspace_id,
+            name,
+            color,
+        });
+    }
 
-    let (filtered_rows, labels_map) = if filter_by_labels {
-        // Fetch labels for all issues and filter
-        let issue_ids: Vec<Uuid> = rows.iter().map(|r| r.id).collect();
-
-        let all_labels: Vec<(Uuid, Label)> = sqlx::query_as(
-            r#"
-            SELECT il.issue_id, l.id, l.workspace_id, l.name, l.color
-            FROM issue_labels il
-            JOIN labels l ON l.id = il.label_id
-            WHERE il.issue_id = ANY($1)
-            ORDER BY l.name
-            "#,
-        )
-        .bind(&issue_ids)
-        .fetch_all(&state.pool)
-        .await
-        .map_err(AppError::DatabaseError)?;
-
-        // Group labels by issue_id
-        let mut labels_map: HashMap<Uuid, Vec<Label>> = HashMap::new();
-        for (issue_id, label) in all_labels {
-            labels_map.entry(issue_id).or_default().push(label);
-        }
-
-        // Filter issues based on label criteria
-        let filtered: Vec<_> = rows.into_iter().filter(|row| {
-            let issue_labels = labels_map.get(&row.id).map(|l| &l[..]).unwrap_or(&[]);
-
-            if let Some(label_id) = &filters.label_id {
-                issue_labels.iter().any(|l| l.id == *label_id)
-            } else if let Some(label_ids) = &filters.label_ids {
-                let label_id_set: HashSet<_> = label_ids.iter().collect();
-                issue_labels.iter().all(|l| label_id_set.contains(&l.id))
-            } else {
-                true
-            }
-        }).collect();
-
-        (filtered, labels_map)
-    } else {
-        // No label filtering - just collect issue IDs for batch label fetching
-        let issue_ids: Vec<Uuid> = rows.iter().map(|r| r.id).collect();
-
-        let all_labels: Vec<(Uuid, Label)> = sqlx::query_as(
-            r#"
-            SELECT il.issue_id, l.id, l.workspace_id, l.name, l.color
-            FROM issue_labels il
-            JOIN labels l ON l.id = il.label_id
-            WHERE il.issue_id = ANY($1)
-            ORDER BY l.name
-            "#,
-        )
-        .bind(&issue_ids)
-        .fetch_all(&state.pool)
-        .await
-        .map_err(AppError::DatabaseError)?;
-
-        // Group labels by issue_id
-        let mut labels_map: HashMap<Uuid, Vec<Label>> = HashMap::new();
-        for (issue_id, label) in all_labels {
-            labels_map.entry(issue_id).or_default().push(label);
-        }
-
-        (rows, labels_map)
-    };
-
-    let issues = filtered_rows
+    let issues = rows
         .into_iter()
         .map(|r| {
             let labels = labels_map.get(&r.id).cloned().unwrap_or_default();
@@ -378,7 +339,9 @@ pub async fn create_issue(
             .is_some();
 
             if !label_exists {
-                return Err(AppError::NotFound("Label not found or belongs to different workspace".into()));
+                return Err(AppError::NotFound(
+                    "Label not found or belongs to different workspace".into(),
+                ));
             }
         }
 
@@ -641,7 +604,9 @@ pub async fn update_issue(
             .is_some();
 
             if !label_exists {
-                return Err(AppError::NotFound("Label not found or belongs to different workspace".into()));
+                return Err(AppError::NotFound(
+                    "Label not found or belongs to different workspace".into(),
+                ));
             }
         }
 

@@ -5,10 +5,8 @@ use axum::{
 };
 use uuid::Uuid;
 
-use crate::{
-    common::{auth::AuthenticatedUser, error::AppError, state::AppState},
-};
 use super::dto::{CreateLabelRequest, Label};
+use crate::common::{auth::AuthenticatedUser, error::AppError, state::AppState};
 
 #[utoipa::path(get, path="/api/v1/workspaces/{workspace_id}/labels",
     params(("workspace_id"=Uuid,Path)),
@@ -30,7 +28,9 @@ pub async fn list_labels(
     .is_some();
 
     if !has_access {
-        return Err(AppError::NotFound("Workspace not found or access denied".into()));
+        return Err(AppError::NotFound(
+            "Workspace not found or access denied".into(),
+        ));
     }
 
     let labels = sqlx::query_as::<_, Label>(
@@ -39,7 +39,7 @@ pub async fn list_labels(
         FROM labels
         WHERE workspace_id = $1
         ORDER BY name
-        "#
+        "#,
     )
     .bind(workspace_id)
     .fetch_all(&state.pool)
@@ -70,10 +70,13 @@ pub async fn create_label(
     .map_err(AppError::DatabaseError)?
     .map(|r| r.role);
 
-    let role = role.ok_or_else(|| AppError::NotFound("Workspace not found or access denied".into()))?;
+    let role =
+        role.ok_or_else(|| AppError::NotFound("Workspace not found or access denied".into()))?;
 
     if role != "Owner" && role != "Admin" {
-        return Err(AppError::Forbidden("Only workspace owners and admins can create labels".into()));
+        return Err(AppError::Forbidden(
+            "Only workspace owners and admins can create labels".into(),
+        ));
     }
 
     let label = sqlx::query_as::<_, Label>(
@@ -81,7 +84,7 @@ pub async fn create_label(
         INSERT INTO labels (workspace_id, name, color)
         VALUES ($1, $2, $3)
         RETURNING id, workspace_id, name, color
-        "#
+        "#,
     )
     .bind(workspace_id)
     .bind(&payload.name)
@@ -118,7 +121,9 @@ pub async fn delete_label(
     .ok_or_else(|| AppError::NotFound("Label not found or access denied".into()))?;
 
     if row.role != "Owner" && row.role != "Admin" {
-        return Err(AppError::Forbidden("Only workspace owners and admins can delete labels".into()));
+        return Err(AppError::Forbidden(
+            "Only workspace owners and admins can delete labels".into(),
+        ));
     }
 
     sqlx::query("DELETE FROM labels WHERE id = $1")
@@ -176,7 +181,9 @@ pub async fn add_labels_to_issue(
         .is_some();
 
         if !label_exists {
-            return Err(AppError::NotFound("Label not found or belongs to different workspace".into()));
+            return Err(AppError::NotFound(
+                "Label not found or belongs to different workspace".into(),
+            ));
         }
     }
 
@@ -225,7 +232,9 @@ pub async fn get_issue_labels(
     .is_some();
 
     if !has_access {
-        return Err(AppError::NotFound("Issue not found or access denied".into()));
+        return Err(AppError::NotFound(
+            "Issue not found or access denied".into(),
+        ));
     }
 
     let labels = sqlx::query_as::<_, Label>(
@@ -235,7 +244,7 @@ pub async fn get_issue_labels(
         JOIN issue_labels il ON l.id = il.label_id
         WHERE il.issue_id = $1
         ORDER BY l.name
-        "#
+        "#,
     )
     .bind(issue_id)
     .fetch_all(&state.pool)

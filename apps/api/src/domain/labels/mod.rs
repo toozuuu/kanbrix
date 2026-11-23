@@ -2,7 +2,7 @@ pub mod dto;
 pub mod handlers;
 
 use crate::common::state::AppState;
-use axum::{routing::get, Router, routing::post, routing::delete};
+use axum::{routing::delete, routing::get, routing::post, Router};
 
 pub fn routes() -> Router<AppState> {
     Router::new()

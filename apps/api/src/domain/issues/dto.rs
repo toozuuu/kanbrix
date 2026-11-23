@@ -4,7 +4,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
-use super::labels::dto::Label;
+use crate::domain::labels::dto::Label;
 
 #[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct CreateIssueRequest {
