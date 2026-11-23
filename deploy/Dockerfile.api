@@ -1,0 +1,28 @@
+# Builder Stage
+FROM rust:1.80-alpine AS builder
+
+RUN apk add --no-cache musl-dev postgresql-dev
+
+WORKDIR /app
+COPY Cargo.toml Cargo.lock ./
+COPY apps/api ./apps/api
+
+WORKDIR /app/apps/api
+RUN cargo build --release
+
+# Runner Stage
+FROM alpine:3.20
+
+RUN apk add --no-cache ca-certificates libpq
+
+WORKDIR /app
+COPY --from=builder /app/apps/api/target/release/rusttrack-api /app/rusttrack-api
+COPY --from=builder /app/apps/api/migrations /app/migrations
+
+ENV APP_ENV=production
+ENV SERVER_HOST=0.0.0.0
+ENV SERVER_PORT=8080
+
+EXPOSE 8080
+
+CMD ["/app/rusttrack-api"]

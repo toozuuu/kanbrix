@@ -1,0 +1,10 @@
+{
+  "name": "@rusttrack/api-contract",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.ts",
+  "types": "index.ts",
+  "scripts": {
+    "sync": "node scripts/sync-spec.js"
+  }
+}
