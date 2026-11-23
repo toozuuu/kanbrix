@@ -33,7 +33,7 @@ async fn fetch_issue_labels(issue_id: Uuid, pool: &sqlx::PgPool) -> Result<Vec<L
     .map_err(AppError::DatabaseError)
 }
 
-#[utoipa::path(get,path="/api/v1/projects/{project_id}/issues",params(("project_id"=Uuid,Path,description="project id"),("field_id"=Option<String>,Query,description="field id"),("field_value"=Option<String>,Query,description="field value"),("status_id"=Option<Uuid>,Query,description="status id"),("assignee_id"=Option<Uuid>,Query,description="assignee id"),("type"=Option<String>,Query,description="type"),("priority"=Option<String>,Query,description="priority"),("sprint_id"=Option<Uuid>,Query,description="sprint id"),("label_id"=Option<Uuid>,Query,description="filter by label id"),("label_ids"=Option<Vec<Uuid>>,Query,description="filter by label ids (issues having ALL specified labels)"),("search"=Option<String>,Query,description="search"),("limit"=Option<i64>,Query,description="limit"),("offset"=Option<i64>,Query,description="offset"),("unassigned"=Option<bool>,Query,description="unassigned"),("recently_updated"=Option<bool>,Query,description="Updated within the last 24 hours"),("due_before"=Option<String>,Query,description="due before")),responses((status=200,body=[IssueResponse])))]
+#[utoipa::path(get,path="/api/v1/projects/{project_id}/issues",params(("project_id"=Uuid,Path,description="project id"),("field_id"=Option<String>,Query,description="field id"),("field_value"=Option<String>,Query,description="field value"),("status_id"=Option<Uuid>,Query,description="status id"),("assignee_id"=Option<Uuid>,Query,description="assignee id"),("type"=Option<String>,Query,description="type"),("priority"=Option<String>,Query,description="priority"),("sprint_id"=Option<Uuid>,Query,description="sprint id"),("label_id"=Option<Uuid>,Query,description="filter by label id"),("label_ids"=Option<String>,Query,description="comma-separated label ids (issues having ALL specified labels)"),("search"=Option<String>,Query,description="search"),("limit"=Option<i64>,Query,description="limit"),("offset"=Option<i64>,Query,description="offset"),("unassigned"=Option<bool>,Query,description="unassigned"),("recently_updated"=Option<bool>,Query,description="Updated within the last 24 hours"),("due_before"=Option<String>,Query,description="due before")),responses((status=200,body=[IssueResponse])))]
 pub async fn list_project_issues(
     auth_user: AuthenticatedUser,
     Path(project_id): Path<Uuid>,
@@ -329,7 +329,7 @@ pub async fn create_issue(
         // Verify all labels belong to the workspace
         for label_id in &label_ids {
             let label_exists = sqlx::query!(
-                "SELECT 1 FROM labels WHERE id = $1 AND workspace_id = $2",
+                "SELECT id FROM labels WHERE id = $1 AND workspace_id = $2",
                 label_id,
                 proj.workspace_id
             )
@@ -543,7 +543,7 @@ pub async fn update_issue(
             assignee_id = CASE WHEN $6::boolean THEN $7 ELSE assignee_id END,
             sprint_id = CASE WHEN $8::boolean THEN $9 ELSE sprint_id END,
             position = COALESCE($10, position),
-            due_date = COALESCE($11, due_date),
+            due_date = CASE WHEN $14::boolean THEN $11 ELSE due_date END,
             updated_at = NOW()
         WHERE id = $12
         "#,
@@ -553,13 +553,14 @@ pub async fn update_issue(
         payload.priority,
         payload.status_id,
         payload.assignee_id.is_some(),
-        payload.assignee_id,
+        payload.assignee_id.flatten(),
         payload.sprint_id.is_some(),
-        payload.sprint_id,
+        payload.sprint_id.flatten(),
         payload.position,
-        payload.due_date,
+        payload.due_date.flatten(),
         issue_id,
-        values
+        values,
+        payload.due_date.is_some()
     )
     .execute(&mut *tx)
     .await
@@ -594,7 +595,7 @@ pub async fn update_issue(
         // Verify all labels belong to the same workspace
         for label_id in &label_ids {
             let label_exists = sqlx::query!(
-                "SELECT 1 FROM labels WHERE id = $1 AND workspace_id = $2",
+                "SELECT id FROM labels WHERE id = $1 AND workspace_id = $2",
                 label_id,
                 existing.workspace_id
             )

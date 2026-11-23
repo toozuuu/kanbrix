@@ -88,7 +88,7 @@ pub fn create_router(state: AppState) -> Router {
         .nest("/workspaces", workspaces::routes())
         .nest("/workspaces", projects::workspace_routes())
         .nest("/workspaces", audit::routes())
-        .nest("/workspaces", labels::routes())
+        .merge(labels::routes())
         .nest("/projects", projects::routes())
         .nest("/projects", issues::project_routes())
         .nest("/projects", sprints::project_routes())

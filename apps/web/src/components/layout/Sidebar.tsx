@@ -66,7 +66,7 @@ export function Sidebar() {
           {!collapsed && projects.length > 0 && <label className="mb-5 flex items-center gap-2 rounded-lg border border-border p-2">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary"><Layers3 size={18}/></span>
             <span className="min-w-0 flex-1"><span className="block px-1 text-xs text-muted-foreground">{t("Active project")}</span>
-              <SelectBox fullWidth compact value={currentProject?.id ?? ""} aria-label={t("Active project")}
+              <SelectBox fullWidth value={currentProject?.id ?? ""} unavailableLabel={currentProject?.name} aria-label={t("Active project")}
                 onChange={event => setCurrentProject(projects.find(project => project.id === event.target.value) ?? null)}>
                 {!currentProject && <option value="">Choose project</option>}
                 {projects.map(project => <option key={project.id} value={project.id}>{project.name} ({project.project_key})</option>)}

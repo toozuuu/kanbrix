@@ -1,5 +1,6 @@
 import { SelectBox } from "../ui/SelectBox";
 import { useIssueForm } from "../../context/useIssueForm";
+import { useConfiguration } from "../../context/useConfiguration";
 import { useWorkspace } from "../../context/WorkspaceContext";
 import { Search, X, Tag } from "lucide-react";
 
@@ -34,11 +35,12 @@ export function FilterBar({
   onClear,
 }: FilterBarProps) {
   const cfg = useIssueForm();
+  const configuration = useConfiguration();
   const { labels: workspaceLabels } = useWorkspace();
   const hasFilters = Boolean(search || priority || type || assignment || overdue || recentlyUpdated || (selectedLabels.length > 0));
 
   return (
-    <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap rounded-xl border border-border bg-card p-3">
+    <div className="grid grid-cols-2 items-center gap-2 rounded-lg border border-border bg-card p-2 sm:flex sm:flex-wrap">
       {/* Search Input */}
       <div className="relative col-span-2 min-w-0 sm:min-w-48 sm:flex-1 sm:max-w-sm">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -63,9 +65,11 @@ export function FilterBar({
       <SelectBox
         aria-label="Filter by priority" data-filter-active={Boolean(priority)}
         value={priority || ""}
+        disabled={!cfg?.priorities.length && !priority}
+        unavailableLabel={priority}
         onChange={(e) => onPriorityChange(e.target.value || undefined)}
       >
-        <option value="">All Priorities</option>
+        <option value="">{cfg?.priorities.length ? "All Priorities" : configuration.isFetching ? "Loading priorities…" : "Priorities unavailable"}</option>
         {cfg?.priorities.map(v=><option key={v}>{v}</option>)}
       </SelectBox>
 
@@ -73,9 +77,11 @@ export function FilterBar({
       <SelectBox
         aria-label="Filter by issue type" data-filter-active={Boolean(type)}
         value={type || ""}
+        disabled={!cfg?.types.length && !type}
+        unavailableLabel={type}
         onChange={(e) => onTypeChange(e.target.value || undefined)}
       >
-        <option value="">All Types</option>
+        <option value="">{cfg?.types.length ? "All Types" : configuration.isFetching ? "Loading types…" : "Types unavailable"}</option>
         {cfg?.types.map(v=><option key={v}>{v}</option>)}
       </SelectBox>
 
@@ -125,6 +131,11 @@ export function FilterBar({
         </div>
       )}
 
+      {configuration.isError && !cfg && (
+        <button type="button" className="text-sm text-primary underline" onClick={() => void configuration.refetch()}>
+          Retry loading filters
+        </button>
+      )}
       {hasFilters && (
         <button
           onClick={onClear}

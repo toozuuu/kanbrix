@@ -110,8 +110,8 @@ export const api = {
         method: "POST",
         body: JSON.stringify(body),
       }),
-    activity: (workspaceId: string) =>
-      request<ActivityLog[]>(`/workspaces/${workspaceId}/activity`),
+    activity: (workspaceId: string, issueId?: string) =>
+      request<ActivityLog[]>(`/workspaces/${workspaceId}/activity${issueId ? "?issue_id=" + encodeURIComponent(issueId) : ""}`),
   },
 
   // Projects

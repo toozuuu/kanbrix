@@ -3,7 +3,7 @@ import {useTranslation} from "react-i18next";
 import {useLiveBoard} from "../context/useLiveBoard";
 import { useIssueForm } from "../context/useIssueForm";
 import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useCalendar } from "./PersonalSettings";
 import { useAuth } from "../context/AuthContext";
@@ -13,7 +13,7 @@ import { Issue } from "../types";
 import { KanbanBoard } from "../components/kanban/KanbanBoard";
 import { FilterBar } from "../components/issues/FilterBar";
 import { Button } from "../components/ui/Button";
-import { Plus, Kanban as KanbanIcon } from "lucide-react";
+import { Plus, Kanban as KanbanIcon, ListTree, LayoutDashboard } from "lucide-react";
 
 interface KanbanPageProps {
   onIssueClick: (issue: Issue) => void;
@@ -34,6 +34,12 @@ export function KanbanPage({ onIssueClick, onAddIssueToStatus }: KanbanPageProps
   const labelFilter = params.get("label") ?? undefined;
   const labelIdsParam = params.get("labels");
   const projectId = currentProject?.id;
+  const sprintId = params.get("sprint") ?? "";
+  const sprints = useQuery({
+    queryKey: ["project-sprints", projectId],
+    queryFn: () => api.sprints.list(projectId!),
+    enabled: !!projectId,
+  });
   useLiveBoard(projectId,user?.id);
   const workflow = useQuery({
     queryKey: ["project-workflow", projectId],
@@ -50,7 +56,8 @@ export function KanbanPage({ onIssueClick, onAddIssueToStatus }: KanbanPageProps
 
   const filters = { recently_updated: recentlyUpdated || undefined, field_id:fieldId || undefined,field_value:fieldValue || undefined,search, priority, type, assignee_id: assignment === "mine" ? user?.id : undefined,
     unassigned: assignment === "unassigned", due_before: overdue ? today + "T00:00:00Z" : undefined,
-    label_id: labelFilter, label_ids: allActiveLabelIds.length > 0 ? allActiveLabelIds : undefined };
+    label_id: labelFilter, label_ids: allActiveLabelIds.length > 0 ? allActiveLabelIds : undefined,
+    sprint_id: sprints.data?.some(sprint => sprint.id === sprintId) ? sprintId : undefined };
   const [extraPages, setExtraPages] = useState<Record<string, number>>({});
   const pageSize = 50;
   const statuses = workflow.data?.statuses ?? [];
@@ -103,14 +110,12 @@ export function KanbanPage({ onIssueClick, onAddIssueToStatus }: KanbanPageProps
   }
 
   return (
-    <div className="flex flex-col h-full space-y-4">
+    <div className="flex h-full min-h-0 flex-col gap-3">
       {/* Top Controls Bar */}
       <div className="flex items-center justify-between pb-2 border-b border-border/50">
         <div>
-          <h1 className="text-base font-bold text-foreground tracking-tight">{t("Kanban Board")}</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {currentProject.name} &middot; {issues.length} issues shown
-          </p>
+          <p className="text-xs font-medium text-muted-foreground">{currentProject.project_key}</p>
+          <h1 className="text-xl font-semibold tracking-tight">{currentProject.name}</h1>
         </div>
 
         <Button size="sm" onClick={() => onAddIssueToStatus()} className="gap-1.5">
@@ -118,6 +123,26 @@ export function KanbanPage({ onIssueClick, onAddIssueToStatus }: KanbanPageProps
           <span>{t("New Issue")}</span>
         </Button>
       </div>
+      <nav aria-label="Project views" className="flex flex-wrap items-center gap-2 text-sm">
+        <span aria-current="page" className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-3 py-1.5 font-semibold text-primary">
+          <KanbanIcon size={15} aria-hidden="true" /> Board
+        </span>
+        <Link to="/backlog" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-accent">
+          <ListTree size={15} aria-hidden="true" /> Backlog
+        </Link>
+        <Link to="/dashboard" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-accent">
+          <LayoutDashboard size={15} aria-hidden="true" /> Dashboard
+        </Link>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <SelectBox aria-label="Filter board by sprint" value={sprintId} data-filter-active={!!sprintId}
+            unavailableLabel={sprints.isPending ? "Loading sprints…" : "Sprint unavailable"}
+            onChange={event => updateFilter("sprint", event.target.value)}>
+            <option value="">All sprints</option>
+            {sprints.data?.map(sprint => <option key={sprint.id} value={sprint.id}>{sprint.name}</option>)}
+          </SelectBox>
+          {sprints.isError && <button type="button" className="text-xs text-primary underline" onClick={() => void sprints.refetch()}>Retry sprints</button>}
+        </div>
+      </nav>
 
       {/* Filter Bar */}
       <FilterBar
@@ -137,7 +162,7 @@ export function KanbanPage({ onIssueClick, onAddIssueToStatus }: KanbanPageProps
         onSelectedLabelsChange={handleSelectedLabelsChange}
         onClear={() => {
           const next = new URLSearchParams(params);
-          for (const key of ["q", "priority", "type", "assignment", "due", "updated", "field", "value", "label", "labels"]) next.delete(key);
+          for (const key of ["q", "priority", "type", "assignment", "due", "updated", "field", "value", "label", "labels", "sprint"]) next.delete(key);
           setParams(next, { replace: true });
         }}
       />

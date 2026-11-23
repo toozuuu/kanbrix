@@ -34,17 +34,65 @@ pub struct UpdateIssueRequest {
     pub r#type: Option<String>,
     pub priority: Option<String>,
     pub status_id: Option<Uuid>,
-    pub assignee_id: Option<Uuid>,
-    pub sprint_id: Option<Uuid>,
+    #[serde(default, deserialize_with = "explicit_nullable")]
+    pub assignee_id: Option<Option<Uuid>>,
+    #[serde(default, deserialize_with = "explicit_nullable")]
+    pub sprint_id: Option<Option<Uuid>>,
     pub position: Option<f64>,
-    pub due_date: Option<DateTime<Utc>>,
+    #[serde(default, deserialize_with = "explicit_nullable")]
+    pub due_date: Option<Option<DateTime<Utc>>>,
     pub labels: Option<Vec<Uuid>>,
+}
+
+// A missing update field leaves the stored value alone; an explicit null clears it.
+fn explicit_nullable<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer).map(Some)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::UpdateIssueRequest;
+
+    #[test]
+    fn issue_update_distinguishes_omitted_fields_from_explicit_null() {
+        let omitted: UpdateIssueRequest = serde_json::from_value(serde_json::json!({})).unwrap();
+        assert!(omitted.assignee_id.is_none());
+        assert!(omitted.sprint_id.is_none());
+        assert!(omitted.due_date.is_none());
+
+        let cleared: UpdateIssueRequest = serde_json::from_value(serde_json::json!({
+            "assignee_id": null,
+            "sprint_id": null,
+            "due_date": null
+        }))
+        .unwrap();
+        assert_eq!(cleared.assignee_id, Some(None));
+        assert_eq!(cleared.sprint_id, Some(None));
+        assert_eq!(cleared.due_date, Some(None));
+    }
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct ReorderIssueRequest {
     pub status_id: Uuid,
     pub position: f64,
+}
+
+fn deserialize_label_ids<'de, D>(deserializer: D) -> Result<Option<Vec<Uuid>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = String::deserialize(deserializer)?;
+    value
+        .split(',')
+        .map(Uuid::parse_str)
+        .collect::<Result<Vec<_>, _>>()
+        .map(Some)
+        .map_err(serde::de::Error::custom)
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -57,6 +105,7 @@ pub struct IssueFilterQuery {
     pub priority: Option<String>,
     pub sprint_id: Option<Uuid>,
     pub label_id: Option<Uuid>,
+    #[serde(default, deserialize_with = "deserialize_label_ids")]
     pub label_ids: Option<Vec<Uuid>>,
     pub search: Option<String>,
     pub limit: Option<i64>,

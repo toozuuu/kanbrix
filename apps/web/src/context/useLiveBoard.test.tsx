@@ -24,6 +24,7 @@ it("coalesces board changes, reconnects, and stops listening after leaving", () 
   const { unmount } = renderHook(() => useLiveBoard("alpha", "viewer"), {
     wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
   });
+  vi.advanceTimersByTime(0);
   expect(sockets[0].url.pathname).toBe("/api/v1/projects/alpha/live");
   sockets[0].onmessage?.();
   sockets[0].onmessage?.();

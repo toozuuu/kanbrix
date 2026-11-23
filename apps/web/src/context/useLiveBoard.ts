@@ -10,7 +10,7 @@ export function useLiveBoard(project: string | undefined, user: string | undefin
     url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
     let disposed = false;
     let retryDelay = 500;
-    let socket: WebSocket;
+    let socket: WebSocket | undefined;
     let retryTimer: ReturnType<typeof setTimeout>;
     let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -32,12 +32,12 @@ export function useLiveBoard(project: string | undefined, user: string | undefin
       };
     }
 
-    connect();
+    retryTimer = setTimeout(connect, 0);
     return () => {
       disposed = true;
       clearTimeout(retryTimer);
       clearTimeout(refreshTimer);
-      socket.close();
+      socket?.close();
     };
   }, [client, project, user]);
 }

@@ -5,6 +5,7 @@ import { createServer } from "vite";
 
 const shell = await readFile("dist/index.html", "utf8");
 const vite = await createServer({
+  cacheDir: "node_modules/.vite-prerender",
   server: { middlewareMode: true, hmr: false, watch: null },
   appType: "custom",
   ssr: { resolve: { conditions: ["module", "module-sync", "import"] }, noExternal: ["react-router-dom", "react-router"] },

@@ -1,13 +1,210 @@
-@import "react-datepicker/dist/react-datepicker.css";
+@import "flatpickr/dist/flatpickr.css";
 
-.react-datepicker {
-  font-family: inherit;
-  border-color: hsl(var(--border));
+/* DateField wrapper */
+.kanbrix-date-field {
+  width: 100%;
+}
+
+.kanbrix-date-field .flatpickr-wrapper {
+  display: block;
+  width: 100%;
+}
+
+/* Ensure the calendar container takes exactly 100% of the input's width */
+.kanbrix-date-field .flatpickr-calendar {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
   background: hsl(var(--card));
   color: hsl(var(--foreground));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.25);
+  margin-top: 4px;
+  overflow: hidden;
 }
-.react-datepicker__header { background: hsl(var(--secondary)); border-color: hsl(var(--border)); }
-.react-datepicker__current-month, .react-datepicker__day-name, .react-datepicker__day { color: hsl(var(--foreground)); }
-.react-datepicker__day--disabled { color: hsl(var(--muted-foreground)); opacity: .5; }
-.react-datepicker__day--selected, .react-datepicker__day--keyboard-selected { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
-.react-datepicker__day:not([aria-disabled=true]):hover { background: hsl(var(--accent)); color: hsl(var(--accent-foreground)); }
+
+/* Hide default arrows on the calendar popover */
+.kanbrix-date-field .flatpickr-calendar::before,
+.kanbrix-date-field .flatpickr-calendar::after {
+  display: none !important;
+}
+
+/* Containers width override */
+.kanbrix-date-field .flatpickr-innerContainer,
+.kanbrix-date-field .flatpickr-rContainer,
+.kanbrix-date-field .flatpickr-days,
+.kanbrix-date-field .dayContainer,
+.kanbrix-date-field .flatpickr-weekdays,
+.kanbrix-date-field .flatpickr-weekdaycontainer {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+/* Month navigation header */
+.kanbrix-date-field .flatpickr-months {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  background: hsl(var(--secondary) / 0.5);
+  border-bottom: 1px solid hsl(var(--border));
+  position: relative;
+}
+
+.kanbrix-date-field .flatpickr-months .flatpickr-prev-month,
+.kanbrix-date-field .flatpickr-months .flatpickr-next-month {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 0.375rem;
+  color: hsl(var(--muted-foreground));
+  fill: currentColor;
+  position: static;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.kanbrix-date-field .flatpickr-months .flatpickr-prev-month:hover,
+.kanbrix-date-field .flatpickr-months .flatpickr-next-month:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+  fill: currentColor;
+}
+
+.kanbrix-date-field .flatpickr-months .flatpickr-prev-month svg,
+.kanbrix-date-field .flatpickr-months .flatpickr-next-month svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor !important;
+}
+
+.kanbrix-date-field .flatpickr-months .flatpickr-month {
+  flex: 1;
+  height: auto;
+  overflow: visible;
+  color: hsl(var(--foreground));
+}
+
+.kanbrix-date-field .flatpickr-current-month {
+  position: static;
+  width: 100%;
+  left: auto;
+  padding: 0;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.kanbrix-date-field .flatpickr-current-month .cur-month {
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  margin-left: 0;
+}
+
+.kanbrix-date-field .flatpickr-current-month .cur-year {
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.kanbrix-date-field .flatpickr-current-month .numInputWrapper {
+  width: auto;
+  display: inline-flex;
+}
+
+.kanbrix-date-field .flatpickr-current-month .numInputWrapper span {
+  display: none;
+}
+
+/* Weekday header grid */
+.kanbrix-date-field .flatpickr-weekdays {
+  height: auto;
+  background: transparent;
+}
+
+.kanbrix-date-field .flatpickr-weekdaycontainer {
+  display: grid !important;
+  grid-template-columns: repeat(7, 1fr) !important;
+  padding: 8px 6px 4px !important;
+}
+
+.kanbrix-date-field span.flatpickr-weekday {
+  width: 100% !important;
+  max-width: none !important;
+  flex: none !important;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Days container grid matching 7 columns perfectly */
+.kanbrix-date-field .dayContainer {
+  display: grid !important;
+  grid-template-columns: repeat(7, 1fr) !important;
+  padding: 4px 6px 8px !important;
+  gap: 2px;
+}
+
+.kanbrix-date-field .flatpickr-day {
+  width: 100% !important;
+  max-width: none !important;
+  flex: none !important;
+  height: 32px !important;
+  line-height: 32px !important;
+  border-radius: 0.375rem !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8125rem;
+  border: 1px solid transparent;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+/* Hover state */
+.kanbrix-date-field .flatpickr-day:hover:not(.flatpickr-disabled):not(.selected) {
+  background: hsl(var(--accent)) !important;
+  color: hsl(var(--accent-foreground)) !important;
+  border-color: transparent !important;
+}
+
+/* Today */
+.kanbrix-date-field .flatpickr-day.today:not(.selected) {
+  border-color: hsl(var(--primary) / 0.5) !important;
+  font-weight: 600;
+}
+
+/* Selected day */
+.kanbrix-date-field .flatpickr-day.selected,
+.kanbrix-date-field .flatpickr-day.selected:hover,
+.kanbrix-date-field .flatpickr-day.selected:focus {
+  background: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+  border-color: hsl(var(--primary)) !important;
+  font-weight: 600;
+}
+
+/* Inactive days */
+.kanbrix-date-field .flatpickr-day.prevMonthDay,
+.kanbrix-date-field .flatpickr-day.nextMonthDay {
+  color: hsl(var(--muted-foreground) / 0.35) !important;
+}
+
+.kanbrix-date-field .flatpickr-day.flatpickr-disabled,
+.kanbrix-date-field .flatpickr-day.flatpickr-disabled:hover {
+  color: hsl(var(--muted-foreground) / 0.25) !important;
+  cursor: not-allowed;
+  background: transparent !important;
+}

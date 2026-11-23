@@ -1,7 +1,8 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     Json,
 };
+use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::{
@@ -13,10 +14,16 @@ use crate::{
     domain::audit::dto::ActivityLogResponse,
 };
 
-#[utoipa::path(get,path="/api/v1/workspaces/{workspace_id}/activity",params(("workspace_id"=Uuid,Path,description="workspace id")),responses((status=200,body=[ActivityLogResponse])))]
+#[derive(Deserialize)]
+pub struct ActivityQuery {
+    issue_id: Option<Uuid>,
+}
+
+#[utoipa::path(get,path="/api/v1/workspaces/{workspace_id}/activity",params(("workspace_id"=Uuid,Path,description="workspace id"),("issue_id"=Option<Uuid>,Query,description="Filter by issue")),responses((status=200,body=[ActivityLogResponse])))]
 pub async fn list_workspace_activity(
     auth_user: AuthenticatedUser,
     Path(workspace_id): Path<Uuid>,
+    Query(query): Query<ActivityQuery>,
     State(state): State<AppState>,
 ) -> Result<Json<Vec<ActivityLogResponse>>, AppError> {
     verify_workspace_membership(&state.pool, workspace_id, auth_user.id).await?;
@@ -28,10 +35,12 @@ pub async fn list_workspace_activity(
         FROM activity_logs a
         LEFT JOIN users u ON a.actor_id = u.id
         WHERE a.workspace_id = $1
+          AND ($2::uuid IS NULL OR (a.entity_type = 'issue' AND a.entity_id = $2))
         ORDER BY a.created_at DESC
         LIMIT 50
         "#,
-        workspace_id
+        workspace_id,
+        query.issue_id
     )
     .fetch_all(&state.pool)
     .await

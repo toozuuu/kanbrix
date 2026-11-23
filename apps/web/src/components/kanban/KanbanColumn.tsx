@@ -42,36 +42,26 @@ export function KanbanColumn({
   };
 
   return (
-    <div className="flex flex-col w-[min(19rem,78vw)] shrink-0 rounded-xl bg-card border border-border/60 max-h-full shadow-sm">
+    <section ref={setNodeRef} aria-label={status.name} className={cn(
+      "flex max-h-full w-[min(16rem,78vw)] shrink-0 flex-col rounded-xl border border-border/60 bg-secondary/40",
+      isOver && "border-primary/50 bg-primary/5",
+    )}>
       {/* Column Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-secondary/30">
+      <div className="flex shrink-0 items-center justify-between px-3 py-2">
         <div className="flex items-center gap-2">
           <span className={cn("h-2.5 w-2.5 rounded-full shrink-0", getStatusColor(status.category))} />
-          <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">
+          <h3 className="text-sm font-semibold text-foreground">
             {status.name}
           </h3>
           <span className="flex h-5 items-center justify-center rounded-full bg-muted px-2 text-[10px] font-semibold text-muted-foreground">
-            {issues.length}
+            {issues.length}{loadMore ? "+" : ""}
           </span>
         </div>
 
-        <button
-          onClick={() => onAddIssueToStatus(status.id)}
-          className="rounded-full p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200 focus:ring-2 focus:ring-ring focus:ring-offset-2"
-          title={`Add issue to ${status.name}`}
-        >
-          <Plus className="h-4 w-4" />
-        </button>
       </div>
 
       {/* Issues Droppable Area */}
-      <div
-        ref={setNodeRef}
-        className={cn(
-          "flex-1 p-3 space-y-2.5 overflow-y-auto min-h-[150px] transition-colors rounded-b-xl",
-          isOver && "bg-primary/5 ring-2 ring-primary/30"
-        )}
-      >
+      <div className="min-h-3 flex-1 space-y-2 overflow-y-auto px-2 py-1">
         <SortableContext items={issues.map((i) => i.id)} strategy={verticalListSortingStrategy}>
           {issues.map((issue) => (
             <IssueCard key={issue.id} issue={issue} onClick={onIssueClick} />
@@ -79,16 +69,18 @@ export function KanbanColumn({
         </SortableContext>
 
         {loadMore && (
-          <button className="w-full py-2 text-sm text-primary hover:text-primary/80 font-medium transition-colors">
+          <button type="button" onClick={loadMore} className="w-full py-2 text-sm text-primary hover:text-primary/80 font-medium transition-colors">
             Load more issues
           </button>
         )}
-        {issues.length === 0 && (
-          <div className="flex h-28 items-center justify-center rounded-lg border border-dashed border-border/60 bg-card/50 text-xs text-muted-foreground/60 select-none">
-            No issues here yet
-          </div>
-        )}
       </div>
-    </div>
+      <button type="button"
+        onClick={() => onAddIssueToStatus(status.id)}
+        aria-label={`Add issue to ${status.name}`}
+        className="m-2 mt-1 inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md border border-dashed border-border px-2 py-1.5 text-xs text-muted-foreground hover:border-primary hover:text-primary"
+      >
+        <Plus size={14} aria-hidden="true" /> Add issue
+      </button>
+    </section>
   );
 }

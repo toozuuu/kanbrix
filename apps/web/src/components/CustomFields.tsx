@@ -1,4 +1,5 @@
 import { SelectBox } from "./ui/SelectBox";
+import { DateField } from "./ui/DateField";
 import type { CustomField, Values } from "../types/configuration";
 
 export const control =
@@ -21,6 +22,9 @@ export function CustomFields({
         .map((f) => {
           const value = values[f.id];
           const set = (v: Values[string]) => change({ ...values, [f.id]: v });
+          if (f.kind === "date") {
+            return <DateField key={f.id} label={f.label} value={String(value ?? "")} onChange={set} required={f.required} help={f.help} />;
+          }
           if (f.kind === "multi") {
             const selected = Array.isArray(value) ? value : [];
             return (

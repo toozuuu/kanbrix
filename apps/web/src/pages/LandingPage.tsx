@@ -54,8 +54,8 @@ export function LandingPage() {
     <main>
       <section className="launch-hero">
         <div className="launch-copy">
-          <h1>Open-source<br/><em>issue tracking.</em></h1>
-          <p>Kanbrix is an open-source Jira alternative for teams that want to self-host their issue tracker. Plan sprints, assign work, and see what’s ready to ship.</p>
+          <h1>Self-hosted<br/><em>issue tracking.</em></h1>
+          <p>Kanbrix is an open-source Jira alternative with drag-and-drop Kanban boards, sprint planning, and configurable workflows. Run it on your own infrastructure with Docker Compose.</p>
           <div className="launch-actions"><Link to="/register">Create an account <ArrowRight size={17}/></Link><a href="#demo">Try the board ↓</a></div>
         </div>
         <div className="launch-print" aria-hidden="true"><div className="print-grid"/><div className="print-stack"><img src="/kanbrix.svg" alt=""/></div></div>

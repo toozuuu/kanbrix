@@ -3,6 +3,7 @@ import viteConfig from './vite.config';
 
 export default defineConfig({
   ...viteConfig,
+  cacheDir: "node_modules/.vite-vitest",
   test: {
     globals: true,
     environment: 'jsdom',

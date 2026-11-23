@@ -1,6 +1,7 @@
 import { SelectBox } from "../ui/SelectBox";
 import {useTranslation} from "react-i18next";
 import { useIssueForm } from "../../context/useIssueForm";
+import { useConfiguration } from "../../context/useConfiguration";
 import { CustomFields } from "../CustomFields";
 import type { Values } from "../../types/configuration";
 import { DateField } from "../ui/DateField";
@@ -35,6 +36,7 @@ export function NewIssueModal({
 }: NewIssueModalProps) {
   const {t}=useTranslation();
   const cfg=useIssueForm();
+  const configuration = useConfiguration();
   const [values,setValues]=useState<Values>({});
   const { currentProject, labels: workspaceLabels } = useWorkspace();
   const [title, setTitle] = useState("");
@@ -54,6 +56,9 @@ export function NewIssueModal({
   const [dueDate, setDueDate] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const issueType = cfg?.types.includes(type) ? type : cfg?.types[0] ?? "";
+  const issuePriority = cfg?.priorities.includes(priority) ? priority : cfg?.priorities[0] ?? "";
+  const canSubmit = Boolean(issueType && issuePriority && statusId && title.trim().length >= 2);
 
   React.useEffect(() => {
     setValues({});
@@ -71,16 +76,18 @@ export function NewIssueModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cfg || !currentProject || !title.trim() || !statusId) return;
+    if (!cfg || !currentProject || !canSubmit || isLoading) return;
 
     try {
       setIsLoading(true);
       await api.issues.create(currentProject.id, {
         title: title.trim(),
         description: description.trim() || undefined,
-        type: cfg?.types.includes(type)?type:cfg?.types[0],
-        priority: cfg?.priorities.includes(priority)?priority:cfg?.priorities[0],
-        custom_values: Object.fromEntries(Object.entries(values).filter(([id])=>cfg?.fields.some(f=>f.id===id && (!f.issue_type || f.issue_type===(cfg.types.includes(type)?type:cfg.types[0]))))),
+        type: issueType,
+        priority: issuePriority,
+        custom_values: Object.fromEntries(Object.entries(values).filter(([id]) =>
+          cfg.fields.some(field => field.id === id && (!field.issue_type || field.issue_type === issueType)),
+        )),
         status_id: statusId,
         due_date: dueDate ? new Date(dueDate).toISOString() : undefined,
         labels: selectedLabels.length > 0 ? selectedLabels : undefined,
@@ -129,8 +136,7 @@ export function NewIssueModal({
           required
         />
 
-        <CustomFields fields={cfg?.fields??[]} kind={cfg?.types.includes(type)?type:cfg?.types[0]??type} values={values} change={setValues}/>
-        <MarkdownEditor label={t("Description (optional)")} value={description} onChange={setDescription}/>
+        <MarkdownEditor label={t("Description (optional)")} value={description} onChange={setDescription} defaultMode="rich"/>
 
         <fieldset className="space-y-3 rounded-lg border border-border bg-secondary/40 px-4 pb-4">
           <legend className="px-1 text-sm font-semibold"><SlidersHorizontal size={14} className="mr-2 inline text-primary" />{t("Issue details")}</legend>
@@ -141,10 +147,12 @@ export function NewIssueModal({
             </label>
             <SelectBox fullWidth
               id="new-issue-type"
-              value={cfg?.types.includes(type)?type:cfg?.types[0]??""}
+              value={issueType}
+              disabled={!issueType}
               onChange={(e) => setType(e.target.value as IssueType)}
             >
-              {cfg?.types.map(v=><option key={v}>{v}</option>)}
+              {!issueType && <option value="">{configuration.isFetching ? "Loading types…" : "Types unavailable"}</option>}
+              {cfg?.types.map(value => <option key={value} value={value}>{value}</option>)}
             </SelectBox>
           </div>
 
@@ -154,10 +162,12 @@ export function NewIssueModal({
             </label>
             <SelectBox fullWidth
               id="new-issue-priority"
-              value={cfg?.priorities.includes(priority)?priority:cfg?.priorities[0]??""}
+              value={issuePriority}
+              disabled={!issuePriority}
               onChange={(e) => setPriority(e.target.value as IssuePriority)}
             >
-              {cfg?.priorities.map(v=><option key={v}>{v}</option>)}
+              {!issuePriority && <option value="">{configuration.isFetching ? "Loading priorities…" : "Priorities unavailable"}</option>}
+              {cfg?.priorities.map(value => <option key={value} value={value}>{value}</option>)}
             </SelectBox>
           </div>
         </div>
@@ -214,12 +224,24 @@ export function NewIssueModal({
         </div>
 
         </fieldset>
+        <CustomFields fields={cfg?.fields ?? []} kind={issueType} values={values} change={setValues}/>
+        {cfg?.usesBuiltInOptions && (
+          <p className="text-xs text-muted-foreground">Using built-in issue options. Update the API to use workspace-specific fields.</p>
+        )}
+        {(!issueType || !issuePriority) && !configuration.isFetching && (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-secondary/40 p-3 text-sm">
+            <p role="status">Issue settings are unavailable. Reload them to create an issue.</p>
+            <button type="button" onClick={() => void configuration.refetch()} className="font-medium text-primary underline">
+              Retry
+            </button>
+          </div>
+        )}
         {workflow.isError && !statuses.length && <button type="button" onClick={() => workflow.refetch()} className="text-sm text-primary underline">Retry loading statuses</button>}
         <div className="flex justify-end gap-2 pt-2 border-t border-border">
           <Button type="button" variant="outline" onClick={onClose}>
             {t("Cancel")}
           </Button>
-          <Button type="submit" disabled={!cfg || !statusId || title.trim().length < 2} isLoading={isLoading}>
+          <Button type="submit" disabled={!canSubmit} isLoading={isLoading}>
             {t("Create Issue")}
           </Button>
         </div>

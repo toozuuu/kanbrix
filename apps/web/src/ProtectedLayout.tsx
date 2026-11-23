@@ -201,7 +201,10 @@ export default function ProtectedLayout() {
         onClose={() => setSelectedIssue(null)}
         issue={selectedIssue}
         statuses={statuses}
-        onIssueUpdated={() => {setSelectedIssue(null);setRefreshKey((k) => k + 1);}}
+        onIssueUpdated={(updated) => {
+          setSelectedIssue(current => current?.id === updated.id ? updated : current);
+          setRefreshKey(key => key + 1);
+        }}
         onIssueDeleted={() => {
           setSelectedIssue(null);
           setRefreshKey((k) => k + 1);

@@ -1,3 +1,4 @@
+import { LinkDialog } from "./ActionDialogs";
 import React, { useState } from 'react';
 
 type MarkdownEditorProps = {
@@ -32,6 +33,7 @@ export function RichMarkdownEditor({
     placeholder = 'Enter your content...',
     className = '',
 }: MarkdownEditorProps) {
+    const [linkOpen, setLinkOpen] = useState(false);
     const [content, setContent] = useState(initialContent);
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
@@ -100,12 +102,10 @@ export function RichMarkdownEditor({
                 />
                 <MarkdownToolbarButton
                     label="Link"
-                    onClick={() => {
-                        const url = window.prompt('Enter URL:', '');
-                        if (url) insertText(`[${url}](${url})`, '');
-                    }}
+                    onClick={() => setLinkOpen(true)}
                 />
             </div>
+            {linkOpen && <LinkDialog onClose={() => setLinkOpen(false)} onInsert={url => insertText(`[${url}](${url})`)} />}
             <textarea
                 ref={textareaRef}
                 className="w-full rounded-md border border-input bg-card p-2 text-sm font-mono"

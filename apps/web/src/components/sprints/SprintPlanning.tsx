@@ -130,7 +130,7 @@ export function SprintPlanning({
                       <span className="font-mono font-semibold text-primary">{issue.identifier}</span>
                       <span className="font-medium text-foreground truncate">{issue.title}</span>
                     </div>
-                    {issue.labels.length > 0 && (
+                    {!!issue.labels?.length && (
                       <div className="flex items-center gap-1 flex-wrap">
                         {issue.labels.map(label => (
                           <LabelBadge key={label.id} label={label} />
@@ -191,7 +191,7 @@ export function SprintPlanning({
                       <span className="font-mono font-semibold text-primary">{issue.identifier}</span>
                       <span className="font-medium text-foreground truncate">{issue.title}</span>
                     </div>
-                    {issue.labels.length > 0 && (
+                    {!!issue.labels?.length && (
                       <div className="flex items-center gap-1 flex-wrap">
                         {issue.labels.map(label => (
                           <LabelBadge key={label.id} label={label} />
@@ -254,7 +254,7 @@ export function SprintPlanning({
                     <span className="font-mono font-semibold text-primary">{issue.identifier}</span>
                     <span className="font-medium text-foreground truncate">{issue.title}</span>
                   </div>
-                  {issue.labels.length > 0 && (
+                  {!!issue.labels?.length && (
                     <div className="flex items-center gap-1 flex-wrap opacity-70">
                       {issue.labels.map(label => (
                         <LabelBadge key={label.id} label={label} />
@@ -270,13 +270,13 @@ export function SprintPlanning({
 
                   {/* Move to sprint selector */}
                   {sprints.length > 0 && (
-                    <SelectBox compact aria-label={`Move ${issue.title} to sprint`}
+                    <SelectBox aria-label={`Move ${issue.title} to sprint`}
                       onClick={(e) => e.stopPropagation()}
                       onChange={(e) => {
                         const targetSprintId = e.target.value || null;
                         handleAssignToSprint(issue.id, targetSprintId);
                       }}
-                      defaultValue=""
+                      value=""
                     >
                       <option value="" disabled>
                         Move to Sprint...

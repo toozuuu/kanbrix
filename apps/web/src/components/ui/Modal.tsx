@@ -8,7 +8,7 @@ export interface ModalProps {
   title: string;
   description?: string;
   children: React.ReactNode;
-  maxWidth?: "sm" | "md" | "lg" | "xl" | "2xl";
+  maxWidth?: "sm" | "md" | "lg" | "xl" | "2xl" | "issue";
 }
 
 export function Modal({
@@ -36,13 +36,14 @@ export function Modal({
     lg: "max-w-lg",
     xl: "max-w-xl",
     "2xl": "max-w-2xl",
+    issue: "max-w-screen-xl",
   };
 
   return (
     <dialog ref={dialog} aria-labelledby={titleId}
       onCancel={(event) => { event.preventDefault(); onClose(); }}
       onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
-      className={cn("m-auto max-h-[90dvh] w-[calc(100%-2rem)] rounded-2xl border border-border bg-card text-foreground shadow-2xl backdrop:bg-black/45 backdrop:backdrop-blur-sm animate-fade-in", maxWidths[maxWidth])}>
+      className={cn("m-auto max-h-[90dvh] w-[calc(100%-2rem)] rounded-2xl border border-border bg-card text-foreground shadow-2xl focus:outline-none backdrop:bg-black/45 backdrop:backdrop-blur-sm animate-fade-in", maxWidths[maxWidth])}>
       <div className="p-5 sm:p-7">
         <div className="flex items-start justify-between pb-4 border-b border-border">
           <div>
@@ -52,6 +53,7 @@ export function Modal({
             )}
           </div>
           <button
+            type="button"
             aria-label="Close dialog" onClick={onClose}
             className="rounded-full bg-secondary p-2 text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200 transform hover:scale-105 focus:ring-2 focus:ring-ring focus:ring-offset-2"
           >

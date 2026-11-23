@@ -78,7 +78,7 @@ export function DashboardPage({ onOpenCreateIssue, onSelectIssue }: DashboardPag
         </Button>
       </div>
 
-      {issueQuery.isFetching && !issueQuery.data && <p role="status">Loading project issues…</p>}
+      {issueQuery.isFetching && !issueQuery.data && <p role="status">Loading project issuesâ€¦</p>}
       {issueQuery.isError && <button className="text-primary underline" onClick={() => issueQuery.refetch()}>Could not load project issues. Retry</button>}
       {issueQuery.data && <>
       {/* Metrics Row */}
@@ -138,12 +138,12 @@ export function DashboardPage({ onOpenCreateIssue, onSelectIssue }: DashboardPag
           return <li key={issue.id}><button onClick={() => onSelectIssue(issue)} className="flex w-full items-center gap-3 rounded px-2 py-3 text-left text-sm hover:bg-secondary">
             <span className="font-mono text-xs text-muted-foreground">{issue.identifier}</span>
             <span className="min-w-0 flex-1 truncate">{issue.title}</span>
-            <time dateTime={date} className={date < today ? "text-destructive" : "text-muted-foreground"}>{date < today ? "Overdue · " : ""}{date === today ? "Today" : date}</time>
+            <time dateTime={date} className={date < today ? "text-destructive" : "text-muted-foreground"}>{date < today ? "Overdue Â· " : ""}{date === today ? "Today" : date}</time>
           </button></li>;
         })}</ul> : <p className="text-sm text-muted-foreground">No open issues due in this period.</p>}
       </section>
       </>}
-      {projectId && <Suspense fallback={<p>Loading reports…</p>}><Reports key={projectId} project={projectId}/></Suspense>}
+      {projectId && <Suspense fallback={<p>Loading reportsâ€¦</p>}><Reports key={projectId} project={projectId}/></Suspense>}
       {/* Content Grid: Assigned Issues & Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Assigned Issues */}
@@ -183,7 +183,7 @@ export function DashboardPage({ onOpenCreateIssue, onSelectIssue }: DashboardPag
                       <span className="font-mono font-semibold text-primary">{issue.identifier}</span>
                       <span className="font-medium text-foreground truncate">{issue.title}</span>
                     </div>
-                    {issue.labels.length > 0 && (
+                    {!!issue.labels?.length && (
                       <div className="flex items-center gap-1 flex-wrap opacity-70">
                         {issue.labels.map(label => (
                           <LabelBadge key={label.id} label={label} />
@@ -232,7 +232,7 @@ export function DashboardPage({ onOpenCreateIssue, onSelectIssue }: DashboardPag
               </div>
             ))}
 
-            {activityQuery.isLoading && <p role="status">Loading activity…</p>}
+            {activityQuery.isLoading && <p role="status">Loading activityâ€¦</p>}
             {activityQuery.isError && <button onClick={() => activityQuery.refetch()} className="text-primary underline">Could not load activity. Retry</button>}
             {activityQuery.isSuccess && activities.length === 0 && (
               <div className="py-8 text-center text-xs text-muted-foreground/60 italic">

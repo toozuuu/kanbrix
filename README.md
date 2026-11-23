@@ -1,6 +1,6 @@
-# Kanbrix
+# Kanbrix · Open-source Jira alternative
 
-Kanbrix is an open-source, self-hosted issue tracker for software teams. Track issues, manage Kanban boards, and plan sprints with a Rust API, a React and TypeScript frontend, and PostgreSQL.
+Kanbrix is a self-hosted issue tracker for software teams. Run it with Docker Compose to get drag-and-drop Kanban boards, a sprint backlog, and configurable workflows on your own infrastructure.
 
 Kanbrix is an independent Jira alternative. The [roadmap](docs/ROADMAP.md) tracks compatibility with Jira Cloud company-managed software projects.
 
@@ -13,9 +13,11 @@ Kanbrix is an independent Jira alternative. The [roadmap](docs/ROADMAP.md) track
 
 ## Run locally
 
-Install Docker with Docker Compose. From the repository root, start the database, API, and web interface with Docker Compose.
+Install Git and Docker with Compose. Then clone Kanbrix and start the database, API, and web interface.
 
 ```sh
+git clone https://github.com/toozuuu/kanbrix.git
+cd kanbrix
 docker compose up --build -d
 ```
 
@@ -52,6 +54,8 @@ For outbound delivery, the installation operator supplies `KANBRIX_WEBHOOK_DESTI
 ```
 
 Restart the API after changing the environment. Workspace admins can then select their destination by name. Delivery is asynchronous. Receivers should deduplicate the `X-Kanbrix-Event-Id` header. Failed deliveries can be retried from the recent-events list after five attempts. Organization configuration exports omit destinations, tokens, issue data and individual project permissions.
+
+For local installation, VPS setup, HTTPS, backups, restore, upgrades, and troubleshooting, see the [self-hosting guide](docs/DEPLOYMENT.md).
 
 ## Production deployment
 

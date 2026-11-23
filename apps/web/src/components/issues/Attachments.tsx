@@ -46,7 +46,12 @@ export function Attachments({issue}:{issue:string}){
     <section className="space-y-2">
       <h3 className="text-sm font-semibold">{t("Attachments")}</h3>
 
-      <label className="block rounded-lg border border-dashed border-input p-3 text-sm cursor-pointer hover:bg-secondary/20 transition-colors">
+      <label className="block rounded-lg border border-dashed border-input p-3 text-sm cursor-pointer hover:bg-secondary/20 transition-colors"
+        onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = busy ? "none" : "copy"; }}
+        onDrop={event => {
+          event.preventDefault();
+          if (!busy) void upload(Array.from(event.dataTransfer.files));
+        }}>
         {busy?"Uploading…":"Drop files here or click to browse (10 MiB each)"}
         <input
           disabled={busy}

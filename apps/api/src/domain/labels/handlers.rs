@@ -9,7 +9,7 @@ use super::dto::{CreateLabelRequest, Label};
 use crate::common::{auth::AuthenticatedUser, error::AppError, state::AppState};
 
 #[utoipa::path(get, path="/api/v1/workspaces/{workspace_id}/labels",
-    params(("workspace_id"=Uuid,Path)),
+    params(("workspace_id"=Uuid,Path,description="workspace id")),
     responses((status=200, body=[Label])))]
 pub async fn list_labels(
     auth_user: AuthenticatedUser,
@@ -50,7 +50,7 @@ pub async fn list_labels(
 }
 
 #[utoipa::path(post, path="/api/v1/workspaces/{workspace_id}/labels",
-    params(("workspace_id"=Uuid,Path)),
+    params(("workspace_id"=Uuid,Path,description="workspace id")),
     request_body=CreateLabelRequest,
     responses((status=201, body=Label)))]
 pub async fn create_label(
@@ -97,7 +97,7 @@ pub async fn create_label(
 }
 
 #[utoipa::path(delete, path="/api/v1/labels/{label_id}",
-    params(("label_id"=Uuid,Path)),
+    params(("label_id"=Uuid,Path,description="label id")),
     responses((status=204)))]
 pub async fn delete_label(
     auth_user: AuthenticatedUser,
@@ -136,8 +136,8 @@ pub async fn delete_label(
 }
 
 #[utoipa::path(post, path="/api/v1/issues/{issue_id}/labels",
-    params(("issue_id"=Uuid,Path)),
-    request_body=(description = "Add labels to issue", content_type = "application/json"),
+    params(("issue_id"=Uuid,Path,description="issue id")),
+    request_body=[Uuid],
     responses((status=200)))]
 pub async fn add_labels_to_issue(
     auth_user: AuthenticatedUser,
@@ -171,7 +171,7 @@ pub async fn add_labels_to_issue(
     // Verify all labels belong to the same workspace
     for label_id in &payload {
         let label_exists = sqlx::query!(
-            "SELECT 1 FROM labels WHERE id = $1 AND workspace_id = $2",
+            "SELECT id FROM labels WHERE id = $1 AND workspace_id = $2",
             label_id,
             row.workspace_id
         )
@@ -207,7 +207,7 @@ pub async fn add_labels_to_issue(
 }
 
 #[utoipa::path(get, path="/api/v1/issues/{issue_id}/labels",
-    params(("issue_id"=Uuid,Path)),
+    params(("issue_id"=Uuid,Path,description="issue id")),
     responses((status=200, body=[Label])))]
 pub async fn get_issue_labels(
     auth_user: AuthenticatedUser,

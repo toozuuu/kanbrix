@@ -1,3 +1,4 @@
+import { ConfirmAction } from "../components/ui/ActionDialogs";
 import { SelectBox } from "../components/ui/SelectBox";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -57,6 +58,7 @@ function Editor({
   refresh: () => void;
 }) {
   const [draft, set] = useState(integration.settings);
+  const [tokenAction, setTokenAction] = useState<boolean | null>(null);
   const [token, setToken] = useState("");
   const [busy, pending] = useState(false);
   const { toast } = useToast();
@@ -72,8 +74,18 @@ function Editor({
       pending(false);
     }
   }
+  function changeToken(enable: boolean) {
+    setTokenAction(null);
+    void act(async () => {
+      const res = await request<{ token: string | null }>(base + "/credential", {
+        method: "POST", body: JSON.stringify(enable),
+      });
+      setToken(res.token ?? "");
+    });
+  }
   return (
     <section className="rounded-xl border border-border bg-card p-5 space-y-3">
+      {tokenAction !== null && <ConfirmAction title={tokenAction ? "Rotate feed token?" : "Revoke feed token?"} description="Clients using the current token will lose access." action={tokenAction ? "Rotate token" : "Revoke token"} onCancel={() => setTokenAction(null)} onConfirm={() => changeToken(tokenAction)} />}
       <h2 className="font-semibold">Integrations and automation</h2>
       <fieldset className="space-y-3" disabled={busy}>
         {["issue.created", "issue.status_changed", "issue.due"].map((ev) => (
@@ -136,20 +148,7 @@ function Editor({
                 key={String(enable)}
                 size="sm"
                 variant="secondary"
-                onClick={() =>
-                  act(async () => {
-                    if (
-                      integration.settings.credential &&
-                      !window.confirm("Invalidate the current feed token?")
-                    )
-                      return;
-                    const res = await request<{ token: string | null }>(
-                      base + "/credential",
-                      { method: "POST", body: JSON.stringify(enable) },
-                    );
-                    setToken(res.token ?? "");
-                  })
-                }
+                onClick={() => integration.settings.credential ? setTokenAction(enable) : changeToken(enable)}
               >
                 {enable
                   ? integration.settings.credential

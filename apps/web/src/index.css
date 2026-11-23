@@ -144,12 +144,20 @@
   color: hsl(var(--foreground));
 }
 .select-box-wide { display: grid; width: 100%; }
+
+:root { --control-height: 2.5rem; }
+
+input:not([type="checkbox"], [type="radio"], [type="file"], [type="hidden"], [type="range"]),
+.select-box > select {
+  height: var(--control-height);
+  min-height: var(--control-height);
+}
+
 .select-box > select {
   appearance: none;
   width: 100%;
   min-width: 0;
-  min-height: 2.5rem;
-  padding-block: .48rem;
+  padding-block: 0;
   padding-inline: .8rem 2.35rem;
   border: 1px solid hsl(var(--input));
   border-radius: .5rem;
@@ -163,7 +171,6 @@
   color-scheme: light;
 }
 .dark .select-box > select { color-scheme: dark; }
-.select-box-compact > select { min-height: 2.125rem; font-size: .8125rem; }
 .select-box-arrow {
   position: absolute;
   inset-inline-end: .75rem;
@@ -203,6 +210,7 @@
     .select-box > select,
     .select-box > select::picker(select) { appearance: base-select; }
 
+    .select-box > select { align-items: center; }
     .select-box > select::picker-icon { display: none; }
     .select-box > select::picker(select) {
       margin-block: .25rem;
@@ -243,7 +251,8 @@
 }
 
 @media (pointer: coarse) {
-  .select-box > select, .select-checklist label { min-height: 44px; }
+  :root { --control-height: 2.75rem; }
+  .select-checklist label { min-height: var(--control-height); }
   .select-box > select { font-size: 1rem; }
 }
 

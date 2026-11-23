@@ -1,4 +1,8 @@
+import { ConfirmAction } from "../ui/ActionDialogs";
 import { SelectBox } from "../ui/SelectBox";
+import { DateField } from "../ui/DateField";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "../../context/AuthContext";
 import {useTranslation} from "react-i18next";
 import {Attachments} from "./Attachments";
 import {Markdown,MarkdownEditor} from "../MarkdownEditor";
@@ -23,7 +27,7 @@ interface IssueDetailModalProps {
   onClose: () => void;
   issue: Issue | null;
   statuses: IssueStatus[];
-  onIssueUpdated: () => void;
+  onIssueUpdated: (issue: Issue) => void;
   onIssueDeleted: () => void;
 }
 
@@ -35,12 +39,27 @@ export function IssueDetailModal({
   onIssueUpdated,
   onIssueDeleted,
 }: IssueDetailModalProps) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const {t}=useTranslation();
   const cfg=useIssueForm();
-  const { labels: workspaceLabels } = useWorkspace();
+  const { labels: workspaceLabels, currentWorkspace } = useWorkspace();
+  const { user } = useAuth();
+  const projectId = issue?.project_id;
+  const workspaceId = currentWorkspace?.id;
+  const sprints = useQuery({
+    queryKey: ["project-sprints", projectId],
+    queryFn: () => api.sprints.list(projectId!),
+    enabled: isOpen && !!projectId,
+  });
+  const members = useQuery({
+    queryKey: ["issue-assignees", workspaceId],
+    queryFn: () => api.workspaces.members(workspaceId!),
+    enabled: isOpen && !!workspaceId,
+  });
   const [formKind,setFormKind]=useState<IssueType>("Task");
   const [values,setValues]=useState<Values>({});
   const [comments, setComments] = useState<Comment[]>([]);
+  const [activityView, setActivityView] = useState<"comments" | "history">("comments");
   const [newComment, setNewComment] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -59,19 +78,30 @@ export function IssueDetailModal({
       setTitle(issue.title);
       editDescription(false);
       setDescription(issue.description || "");
-      setSelectedLabels(issue.labels.map(l => l.id));
-      loadComments(issue.id);
+      setSelectedLabels((issue.labels ?? []).map(l => l.id));
     }
   }, [issue]);
 
-  const loadComments = async (issueId: string) => {
-    try {
-      const list = await api.comments.list(issueId);
-      setComments(list);
-    } catch (e) {
-      console.error("Failed to load comments", e);
-    }
-  };
+  const issueId = issue?.id;
+  const history = useQuery({
+    queryKey: ["issue-history", workspaceId, issueId],
+    queryFn: () => api.workspaces.activity(workspaceId!, issueId!),
+    enabled: isOpen && !!workspaceId && !!issueId && activityView === "history",
+  });
+  const historyEntries = history.data?.filter(entry => entry.entity_type === "issue" && entry.entity_id === issueId);
+  useEffect(() => {
+    setComments([]);
+    setNewComment("");
+    setActivityView("comments");
+    if (!isOpen || !issueId) return;
+    let active = true;
+    api.comments.list(issueId).then(list => {
+      if (active) setComments(list);
+    }).catch(error => {
+      if (active) console.error("Failed to load comments", error);
+    });
+    return () => { active = false; };
+  }, [isOpen, issueId]);
 
   const handleToggleLabel = (labelId: string) => {
     setSelectedLabels(prev =>
@@ -97,8 +127,9 @@ export function IssueDetailModal({
   }) => {
     try {
       setIsUpdating(true);
-      await api.issues.update(issue.id, fields);
-      onIssueUpdated();
+      const updated = await api.issues.update(issue.id, fields);
+      onIssueUpdated(updated);
+      if (activityView === "history") void history.refetch();
       toast("Issue updated", "success");
     } catch (err: any) {
       toast(err.message || "Failed to update issue", "error");
@@ -111,7 +142,8 @@ export function IssueDetailModal({
     try {
       setIsUpdating(true);
       await api.issueLabels.set(issue.id, selectedLabels);
-      onIssueUpdated();
+      onIssueUpdated({ ...issue, labels: workspaceLabels.filter(label => selectedLabels.includes(label.id)) });
+      setIsEditingLabels(false);
       toast("Labels updated", "success");
     } catch (err: any) {
       toast(err.message || "Failed to update labels", "error");
@@ -138,7 +170,7 @@ export function IssueDetailModal({
   };
 
   const handleDelete = async () => {
-    if (!window.confirm("Are you sure you want to delete this issue?")) return;
+    setConfirmDelete(false);
 
     try {
       await api.issues.delete(issue.id);
@@ -155,8 +187,8 @@ export function IssueDetailModal({
       isOpen={isOpen}
       onClose={onClose}
       title={issue.identifier}
-      description={`Created by ${issue.reporter_name} ${formatRelativeTime(issue.created_at)}`}
-      maxWidth="xl"
+      description={issue.project_key}
+      maxWidth="issue"
     >
       <div className="space-y-6">
         {/* Title editing */}
@@ -180,19 +212,19 @@ export function IssueDetailModal({
               </Button>
             </div>
           ) : (
-            <h1
+            <button type="button"
               onClick={() => setIsEditingTitle(true)}
-              className="text-base font-semibold text-foreground hover:bg-accent/50 p-1 rounded cursor-pointer transition-colors flex-1"
+              className="text-xl font-semibold text-foreground hover:bg-accent/50 p-1 rounded transition-colors flex-1 text-start break-words min-w-0"
               title="Click to edit title"
             >
               {title}
-            </h1>
+            </button>
           )}
 
           <Button
             variant="ghost"
             size="sm"
-            onClick={handleDelete}
+            onClick={() => setConfirmDelete(true)}
             className="text-destructive hover:bg-destructive/10 hover:text-destructive"
             title="Delete issue"
           >
@@ -200,184 +232,251 @@ export function IssueDetailModal({
           </Button>
         </div>
 
-        {/* Metadata Controls Panel */}
-        <div className="grid grid-cols-3 gap-3 p-3 rounded-lg bg-secondary/30 border border-border/50 text-xs">
-          {/* Status selector */}
-          <div className="space-y-1">
-            <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
-              {t("Status")}
-            </span>
-            <SelectBox fullWidth compact
-              aria-label={t("Status")}
-              value={issue.status_id}
-              onChange={(e) => handleUpdate({ status_id: e.target.value })}
-              disabled={isUpdating}
-            >
-              {statuses.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </SelectBox>
-          </div>
-
-          {/* Priority selector */}
-          <div className="space-y-1">
-            <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
-              {t("Priority")}
-            </span>
-            <SelectBox fullWidth compact
-              aria-label={t("Priority")}
-              value={issue.priority}
-              onChange={(e) => handleUpdate({ priority: e.target.value as IssuePriority })}
-              disabled={isUpdating}
-            >
-              {Array.from(new Set([issue.priority,...(cfg?.priorities??[])])).map(v=><option key={v}>{v}</option>)}
-            </SelectBox>
-          </div>
-
-          {/* Type selector */}
-          <div className="space-y-1">
-            <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
-              {t("Type")}
-            </span>
-            <SelectBox fullWidth compact
-              aria-label={t("Type")}
-              value={formKind}
-              onChange={(e) => setFormKind(e.target.value as IssueType)}
-              disabled={isUpdating}
-            >
-              {Array.from(new Set([issue.type,...(cfg?.types??[])])).map(v=><option key={v}>{v}</option>)}
-            </SelectBox>
-          </div>
-        </div>
-
-        {/* Labels Section */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-semibold text-foreground uppercase tracking-wider">
-              {t("Labels")}
-            </label>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsEditingLabels(!isEditingLabels)}
-              className="text-xs h-6 px-2"
-            >
-              {isEditingLabels ? "Done" : "Edit"}
-            </Button>
-          </div>
-
-          {issue.labels.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {issue.labels.map((label) => (
-                <LabelBadge key={label.id} label={label} />
-              ))}
+        <div className="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(17rem,22rem)]">
+          <div className="min-w-0 space-y-6">
+            {/* Description Section */}
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold">{t("Description")}</h3>
+              {editingDescription ? <><MarkdownEditor label={t("Edit description")} value={description} onChange={setDescription}/>
+                <Button size="sm" disabled={isUpdating} onClick={()=>handleUpdate({description})}>{t("Save description")}</Button>
+                <Button size="sm" variant="ghost" onClick={()=>{setDescription(issue.description??"");editDescription(false);}}>{t("Cancel")}</Button></>
+                : <><Markdown text={description || "No description provided."}/><button className="text-xs underline" onClick={()=>editDescription(true)}>{t("Edit description")}</button></>}
             </div>
-          ) : (
-            <p className="text-xs text-muted-foreground/60 italic">No labels</p>
-          )}
 
-          {/* Label selection when editing */}
-          {isEditingLabels && (
-            <div className="mt-2 p-3 rounded-lg border border-border bg-secondary/40">
-              {workspaceLabels.length > 0 ? (
+            <Attachments issue={issue.id}/>
+            {/* Discussion / Comments Section */}
+            <div className="space-y-3 pt-3 border-t border-border/60">
+              <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                <MessageSquare className="h-4 w-4 text-primary" />
+                <span>Activity</span>
+              </div>
+
+              <div className="flex gap-2" role="group" aria-label="Issue activity view">
+                <Button type="button" size="sm" variant={activityView === "comments" ? "default" : "outline"}
+                  aria-pressed={activityView === "comments"} onClick={() => setActivityView("comments")}>
+                  Comments ({comments.length})
+                </Button>
+                <Button type="button" size="sm" variant={activityView === "history" ? "default" : "outline"}
+                  aria-pressed={activityView === "history"} onClick={() => setActivityView("history")}>
+                  History
+                </Button>
+              </div>
+              {activityView === "comments" ? <>
+                {/* Comment list */}
+                <div className="space-y-3">
+                  {comments.map((c) => (
+                    <div key={c.id} className="flex gap-2.5 text-xs bg-secondary/20 p-2.5 rounded-lg border border-border/40">
+                      <Avatar name={c.author_name} size="sm" className="shrink-0 mt-0.5" />
+                      <div className="space-y-1 flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-foreground">{c.author_name}</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {formatRelativeTime(c.created_at)}
+                          </span>
+                        </div>
+                        <Markdown text={c.body}/>
+                      </div>
+                    </div>
+                  ))}
+
+                  {comments.length === 0 && (
+                    <div className="py-4 text-center text-xs text-muted-foreground/60 italic">
+                      No comments yet. Start the conversation!
+                    </div>
+                  )}
+                </div>
+
+                {/* Add comment input */}
+                <form onSubmit={handleAddComment} className="flex flex-col items-start gap-2">
+                  <MarkdownEditor className="w-full" label={t("Add a comment")} value={newComment} onChange={setNewComment}/>
+                  <Button size="sm" type="submit" isLoading={isSubmittingComment} className="gap-1">
+                    <Send className="h-3.5 w-3.5" />
+                    <span>Post</span>
+                  </Button>
+                </form>
+              </> : (
+                <div className="space-y-2 text-sm" aria-live="polite">
+                  {history.isPending && <p>Loading issue historyÃ¢â‚¬Â¦</p>}
+                  {history.isError && <button type="button" className="text-primary underline" onClick={() => void history.refetch()}>Retry history</button>}
+                  {historyEntries?.length === 0 && <p className="text-muted-foreground">No recorded changes.</p>}
+                  {historyEntries?.map(entry => (
+                    <div key={entry.id} className="flex flex-wrap justify-between gap-2 rounded-lg border border-border p-2">
+                      <span>{entry.actor_name ?? "System"} Ã‚Â· {entry.action}</span>
+                      <span className="text-muted-foreground">{formatRelativeTime(entry.created_at)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <aside aria-label="Issue details" className="min-w-0 space-y-4 rounded-xl border border-border bg-secondary/30 p-4">
+            <h3 className="text-sm font-semibold">Issue details</h3>
+            {/* Metadata Controls Panel */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-3 text-xs">
+              {/* Status selector */}
+              <div className="space-y-1">
+                <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+                  {t("Status")}
+                </span>
+                <SelectBox fullWidth
+                  aria-label={t("Status")}
+                  value={issue.status_id}
+                  unavailableLabel={issue.status_name}
+                  onChange={(e) => handleUpdate({ status_id: e.target.value })}
+                  disabled={isUpdating}
+                >
+                  {statuses.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </SelectBox>
+              </div>
+
+              {/* Priority selector */}
+              <div className="space-y-1">
+                <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+                  {t("Priority")}
+                </span>
+                <SelectBox fullWidth
+                  aria-label={t("Priority")}
+                  value={issue.priority}
+                  onChange={(e) => handleUpdate({ priority: e.target.value as IssuePriority })}
+                  disabled={isUpdating}
+                >
+                  {Array.from(new Set([issue.priority,...(cfg?.priorities??[])])).map(v=><option key={v}>{v}</option>)}
+                </SelectBox>
+              </div>
+
+              {/* Type selector */}
+              <div className="space-y-1">
+                <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+                  {t("Type")}
+                </span>
+                <SelectBox fullWidth
+                  aria-label={t("Type")}
+                  value={formKind}
+                  onChange={(e) => setFormKind(e.target.value as IssueType)}
+                  disabled={isUpdating}
+                >
+                  {Array.from(new Set([issue.type, formKind, ...(cfg?.types ?? [])])).map(value => <option key={value} value={value}>{value}</option>)}
+                </SelectBox>
+              </div>
+            </div>
+
+            {/* Labels Section */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-foreground uppercase tracking-wider">
+                  {t("Labels")}
+                </label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsEditingLabels(!isEditingLabels)}
+                  className="text-xs h-6 px-2"
+                >
+                  {isEditingLabels ? "Done" : "Edit"}
+                </Button>
+              </div>
+
+              {!!issue.labels?.length ? (
                 <div className="flex flex-wrap gap-2">
-                  {workspaceLabels.map((label) => (
-                    <label key={label.id} className="flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedLabels.includes(label.id)}
-                        onChange={() => handleToggleLabel(label.id)}
-                        className="h-3.5 w-3.5 rounded border border-input text-primary focus:ring-primary/20"
-                      />
-                      <Badge
-                        variant="outline"
-                        style={{
-                          backgroundColor: label.color.startsWith('#') ? label.color : undefined,
-                          borderColor: label.color.startsWith('#') ? label.color : '#d1d5db',
-                          color: label.color.startsWith('#') ? 'white' : undefined,
-                        }}
-                        className="text-xs"
-                      >
-                        {label.name}
-                      </Badge>
-                    </label>
+                  {issue.labels.map((label) => (
+                    <LabelBadge key={label.id} label={label} />
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground/60 italic">No labels available in this workspace</p>
+                <p className="text-xs text-muted-foreground/60 italic">No labels</p>
               )}
-              <Button
-                size="sm"
-                className="mt-2"
-                onClick={handleSaveLabels}
-                disabled={isUpdating}
-              >
-                Save Labels
-              </Button>
-            </div>
-          )}
-        </div>
 
-        {Object.entries(issue.custom_values??{}).some(([id])=>cfg && !cfg.fields.some(f=>f.id===id)) && <details><summary>Archived field values</summary>{Object.entries(issue.custom_values??{}).filter(([id])=>!cfg?.fields.some(f=>f.id===id)).map(([id,value])=><p key={id} className="text-sm">{id}: {String(value??"")}</p>)}</details>}
-        {(!!cfg?.fields.length || formKind!==issue.type) && <form className="space-y-3" onSubmit={e=>{e.preventDefault();void handleUpdate({type:formKind,custom_values:values});}}>
-          <CustomFields fields={cfg?.fields??[]} kind={formKind} values={values} change={setValues}/>
-          <Button size="sm" disabled={isUpdating}>Save issue form</Button>
-        </form>}
-        {/* Description Section */}
-        <div className="space-y-2">
-          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
-            {t("Description")}
-          </label>
-          {editingDescription ? <><MarkdownEditor label={t("Edit description")} value={description} onChange={setDescription}/>
-            <Button size="sm" disabled={isUpdating} onClick={()=>handleUpdate({description})}>{t("Save description")}</Button>
-            <Button size="sm" variant="ghost" onClick={()=>{setDescription(issue.description??"");editDescription(false);}}>{t("Cancel")}</Button></>
-            : <><Markdown text={description || "No description provided."}/><button className="text-xs underline" onClick={()=>editDescription(true)}>{t("Edit description")}</button></>}
-        </div>
-
-        <Attachments issue={issue.id}/>
-        {/* Discussion / Comments Section */}
-        <div className="space-y-3 pt-3 border-t border-border/60">
-          <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-            <MessageSquare className="h-4 w-4 text-primary" />
-            <span>Comments & Activity ({comments.length})</span>
-          </div>
-
-          {/* Comment list */}
-          <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
-            {comments.map((c) => (
-              <div key={c.id} className="flex gap-2.5 text-xs bg-secondary/20 p-2.5 rounded-lg border border-border/40">
-                <Avatar name={c.author_name} size="sm" className="shrink-0 mt-0.5" />
-                <div className="space-y-1 flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-foreground">{c.author_name}</span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {formatRelativeTime(c.created_at)}
-                    </span>
-                  </div>
-                  <Markdown text={c.body}/>
+              {/* Label selection when editing */}
+              {isEditingLabels && (
+                <div className="mt-2 p-3 rounded-lg border border-border bg-secondary/40">
+                  {workspaceLabels.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {workspaceLabels.map((label) => (
+                        <label key={label.id} className="flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedLabels.includes(label.id)}
+                            onChange={() => handleToggleLabel(label.id)}
+                            className="h-3.5 w-3.5 rounded border border-input text-primary focus:ring-primary/20"
+                          />
+                          <Badge
+                            variant="outline"
+                            style={{
+                              backgroundColor: label.color.startsWith('#') ? label.color : undefined,
+                              borderColor: label.color.startsWith('#') ? label.color : '#d1d5db',
+                              color: label.color.startsWith('#') ? 'white' : undefined,
+                            }}
+                            className="text-xs"
+                          >
+                            {label.name}
+                          </Badge>
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground/60 italic">No labels available in this workspace</p>
+                  )}
+                  <Button
+                    size="sm"
+                    className="mt-2"
+                    onClick={handleSaveLabels}
+                    disabled={isUpdating}
+                  >
+                    Save Labels
+                  </Button>
                 </div>
-              </div>
-            ))}
+              )}
+            </div>
 
-            {comments.length === 0 && (
-              <div className="py-4 text-center text-xs text-muted-foreground/60 italic">
-                No comments yet. Start the conversation!
-              </div>
-            )}
-          </div>
-
-          {/* Add comment input */}
-          <form onSubmit={handleAddComment} className="flex gap-2 items-center">
-            <MarkdownEditor label={t("Add a comment")} value={newComment} onChange={setNewComment}/>
-            <Button size="sm" type="submit" isLoading={isSubmittingComment} className="gap-1">
-              <Send className="h-3.5 w-3.5" />
-              <span>Post</span>
-            </Button>
-          </form>
+            {Object.entries(issue.custom_values??{}).some(([id])=>cfg && !cfg.fields.some(f=>f.id===id)) && <details><summary>Archived field values</summary>{Object.entries(issue.custom_values??{}).filter(([id])=>!cfg?.fields.some(f=>f.id===id)).map(([id,value])=><p key={id} className="text-sm">{id}: {String(value??"")}</p>)}</details>}
+            {(!!cfg?.fields.length || formKind!==issue.type) && <form className="space-y-3" onSubmit={e=>{e.preventDefault();void handleUpdate({type:formKind,custom_values:values});}}>
+              <CustomFields fields={cfg?.fields??[]} kind={formKind} values={values} change={setValues}/>
+              <Button size="sm" disabled={isUpdating}>Save issue form</Button>
+            </form>}
+            <div className="space-y-3 border-t border-border pt-3">
+              <label className="block space-y-1 text-xs font-medium">
+                Assignee
+                <SelectBox fullWidth value={issue.assignee_id ?? ""} unavailableLabel={issue.assignee_name ?? "Current assignee"}
+                  disabled={isUpdating || members.isPending || members.isError}
+                  onChange={event => void handleUpdate({ assignee_id: event.target.value || null })}>
+                  <option value="">{members.isPending ? "Loading assigneesÃ¢â‚¬Â¦" : "Unassigned"}</option>
+                  {members.data?.map(member => <option key={member.user_id} value={member.user_id}>{member.name}</option>)}
+                </SelectBox>
+              </label>
+              {user && issue.assignee_id !== user.id && (
+                <button type="button" disabled={isUpdating} className="text-xs text-primary underline"
+                  onClick={() => void handleUpdate({ assignee_id: user.id })}>Assign to me</button>
+              )}
+              {members.isError && <button type="button" className="block text-xs text-primary underline" onClick={() => void members.refetch()}>Retry assignees</button>}
+              <label className="block space-y-1 text-xs font-medium">
+                Sprint
+                <SelectBox fullWidth value={issue.sprint_id ?? ""} unavailableLabel="Current sprint"
+                  disabled={isUpdating || sprints.isPending || sprints.isError}
+                  onChange={event => void handleUpdate({ sprint_id: event.target.value || null })}>
+                  <option value="">{sprints.isPending ? "Loading sprintsÃ¢â‚¬Â¦" : "No sprint"}</option>
+                  {sprints.data?.filter(sprint => sprint.status !== "completed" || sprint.id === issue.sprint_id)
+                    .map(sprint => <option key={sprint.id} value={sprint.id}>{sprint.name}</option>)}
+                </SelectBox>
+              </label>
+              {sprints.isError && <button type="button" className="text-xs text-primary underline" onClick={() => void sprints.refetch()}>Retry sprints</button>}
+              <DateField label="Due date" value={issue.due_date?.slice(0, 10) ?? ""}
+                onChange={date => {
+                  if (!isUpdating) void handleUpdate({ due_date: date ? date + "T00:00:00Z" : null });
+                }}/>
+              <dl className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <dt className="text-muted-foreground">Reporter</dt>
+                <dd>{issue.reporter_name}</dd>
+              </dl>
+            </div>
+            <p className="text-xs text-muted-foreground">Created {formatRelativeTime(issue.created_at)}</p>
+          </aside>
         </div>
       </div>
+      {confirmDelete && <ConfirmAction title="Delete issue?" description={`�${issue.title}� will be permanently deleted.`} action="Delete issue" onCancel={() => setConfirmDelete(false)} onConfirm={handleDelete} />}
     </Modal>
   );
 }

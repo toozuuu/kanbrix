@@ -30,7 +30,7 @@ pub async fn listen(pool: sqlx::PgPool, events: broadcast::Sender<Uuid>) {
         sleep(Duration::from_secs(2)).await;
     }
 }
-#[utoipa::path(web_socket, path="/api/v1/projects/{project}/live", operations=["board"])]
+#[utoipa::path(get, path="/api/v1/projects/{project}/live", params(("project"=Uuid,Path,description="Project ID")), responses((status=101,description="Board WebSocket connection established")))]
 pub async fn board(
     user: AuthenticatedUser,
     State(s): State<AppState>,

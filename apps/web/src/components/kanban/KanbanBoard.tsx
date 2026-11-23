@@ -120,7 +120,7 @@ export function KanbanBoard({
       onDragCancel={() => setActiveIssue(null)}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex h-full gap-4 sm:gap-5 overscroll-x-contain overflow-x-auto pb-4 items-start">
+      <div className="flex h-full items-start gap-3 overflow-x-auto overscroll-x-contain pb-3">
         {statuses.map((status) => {
           const columnIssues = issuesByStatus.get(status.id) ?? [];
 
