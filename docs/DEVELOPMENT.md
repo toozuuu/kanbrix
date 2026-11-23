@@ -1,6 +1,6 @@
 # Development Guide
 
-Welcome to local development on RustTrack!
+Welcome to local development on Kanbrix!
 
 ## Monorepo Layout
 
@@ -25,7 +25,7 @@ cargo run
 
 # 3. In another terminal, run frontend
 cd apps/web
-npm install
+npm ci
 npm run dev
 ```
 
@@ -38,5 +38,7 @@ cargo test
 
 # Frontend typechecking and tests
 cd apps/web
+npm run lint
+npm test
 npm run build
 ```

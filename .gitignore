@@ -1,4 +1,4 @@
-# RustTrack
+# Kanbrix
 target/
 **/*.rs.bk
 # NOTE: Cargo.lock is intentionally committed for this binary application
@@ -14,6 +14,8 @@ dist/
 # Environment & Secrets
 .env
 *.env
+.env.*
+!.env.example
 *.pem
 *.key
 

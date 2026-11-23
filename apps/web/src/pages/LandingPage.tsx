@@ -54,7 +54,7 @@ export function LandingPage() {
     <main>
       <section className="launch-hero">
         <div className="launch-copy">
-          <h1>From backlog<br/>to <em>shipped.</em></h1>
+          <h1>Open-source<br/><em>issue tracking.</em></h1>
           <p>Kanbrix is an open-source Jira alternative for teams that want to self-host their issue tracker. Plan sprints, assign work, and see what’s ready to ship.</p>
           <div className="launch-actions"><Link to="/register">Create an account <ArrowRight size={17}/></Link><a href="#demo">Try the board ↓</a></div>
         </div>
@@ -75,5 +75,8 @@ export function LandingPage() {
         {shareUrl && <input aria-label="Shareable demo link" value={shareUrl} readOnly onFocus={e => e.target.select()}/>}
       </section>
     </main>
+    <footer className="mx-auto max-w-6xl px-6 py-8 text-sm">
+      <a className="underline underline-offset-4" href="https://github.com/toozuuu/kanbrix">Kanbrix source code on GitHub</a>
+    </footer>
   </div>;
 }

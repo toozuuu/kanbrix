@@ -21,7 +21,19 @@ try {
     if (!["https:", "http:"].includes(url.protocol) || url.href !== url.origin + "/") {
       throw new Error("SITE_URL must be the public HTTP(S) origin");
     }
-    home = home.replace("</head>", `<link rel="canonical" href="${url.href}"><meta property="og:url" content="${url.href}"></head>`);
+    const website = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: "Kanbrix",
+      url: url.href,
+      inLanguage: "en",
+    }).replaceAll("<", "\\u003c");
+    home = home.replace("</head>", () => [
+      `<link rel="canonical" href="${url.href}">`,
+      `<meta property="og:url" content="${url.href}">`,
+      `<script type="application/ld+json">${website}</script>`,
+      "</head>",
+    ].join("\n"));
     await writeFile("dist/sitemap.xml", `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${url.href}</loc></url></urlset>`);
     robots += `Sitemap: ${url.origin}/sitemap.xml\n`;
   }

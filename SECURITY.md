@@ -1,7 +1,5 @@
 # Security Policy
 
-RustTrack takes the security of our application, our users, and your self-hosted data seriously.
-
 ## Supported Versions
 
 | Version | Supported          |
@@ -10,11 +8,9 @@ RustTrack takes the security of our application, our users, and your self-hosted
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability within RustTrack, please do not open a public GitHub issue. Instead, report the vulnerability directly to our maintainers via email at security@rusttrack.local.
+Use [GitHub private vulnerability reporting](https://github.com/toozuuu/kanbrix/security/advisories/new) if it is enabled. Otherwise, contact a maintainer privately and use public issues for general bugs.
 
 Please include:
 - A description of the vulnerability and its potential impact.
 - Steps to reproduce or a proof of concept.
 - Any suggested remediations if available.
-
-We commit to acknowledging your report within 48 hours and providing regular status updates.
