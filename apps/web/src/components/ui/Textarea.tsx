@@ -25,20 +25,19 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           aria-describedby={error || helperText ? textareaId + "-hint" : undefined}
           ref={ref}
           className={cn(
-            "flex w-full rounded-md border bg-card px-3 py-2 text-sm font-medium",
+            "flex w-full rounded-[var(--input-radius)] border bg-card px-3 py-2 text-sm font-medium shadow-sm",
             "placeholder:text-muted-foreground",
             "transition-all duration-200",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
             "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-secondary",
-            "border-input hover:border-border/60",
-            error && "border-destructive focus-visible:ring-destructive",
+            "border-input/80 hover:border-foreground/50",
+            error && "border-destructive",
             "resize-y",
             className
           )}
           {...props}
         />
         {error ? (
-          <p id={textareaId + "-hint"} className="text-xs text-destructive font-medium">{error}</p>
+          <p id={textareaId + "-hint"} className="motion-feedback text-xs text-destructive font-medium">{error}</p>
         ) : helperText ? (
           <p id={textareaId + "-hint"} className="text-xs text-muted-foreground">{helperText}</p>
         ) : null}

@@ -15,12 +15,19 @@ export function ProjectSpinner({
   size = "md",
   className,
 }: ProjectSpinnerProps) {
+  if (size === "sm" && !fullScreen) {
+    return <div role="status" className={cn("flex min-h-10 items-center gap-2 text-sm text-muted-foreground", className)}>
+      <span aria-hidden="true" className="size-4 shrink-0 rounded-full border-2 border-muted-foreground/30 border-t-primary motion-safe:animate-spin"/>
+      <span>{message}{subMessage && <small className="block">{subMessage}</small>}</span>
+    </div>;
+  }
+
   const sizeMap = {
     sm: {
       box: "h-10 w-10",
       logo: "h-5 w-5 rounded-lg p-0.5",
       title: "text-xs",
-      sub: "text-[11px]",
+      sub: "text-xs",
       stroke: 2.5,
     },
     md: {
@@ -73,18 +80,11 @@ export function ProjectSpinner({
             cx="32"
             cy="32"
             r="28"
-            stroke="url(#kanbrix-spinner-grad)"
+            stroke="hsl(var(--primary))"
             strokeWidth={config.stroke + 0.5}
             strokeLinecap="round"
             strokeDasharray="95 130"
           />
-          <defs>
-            <linearGradient id="kanbrix-spinner-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="hsl(var(--primary))" />
-              <stop offset="50%" stopColor="#6366f1" />
-              <stop offset="100%" stopColor="#c7ff00" />
-            </linearGradient>
-          </defs>
         </svg>
 
         {/* Center brand mark badge */}

@@ -1,9 +1,15 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     Json,
 };
+use serde::Deserialize;
 use uuid::Uuid;
+
+#[derive(Deserialize)]
+pub struct LabelFilterQuery {
+    pub project_id: Option<Uuid>,
+}
 
 use super::dto::{CreateLabelRequest, Label};
 use crate::common::{auth::AuthenticatedUser, error::AppError, state::AppState};
@@ -14,6 +20,7 @@ use crate::common::{auth::AuthenticatedUser, error::AppError, state::AppState};
 pub async fn list_labels(
     auth_user: AuthenticatedUser,
     Path(workspace_id): Path<Uuid>,
+    Query(query): Query<LabelFilterQuery>,
     State(state): State<AppState>,
 ) -> Result<Json<Vec<Label>>, AppError> {
     // Check workspace membership
@@ -33,18 +40,36 @@ pub async fn list_labels(
         ));
     }
 
-    let labels = sqlx::query_as::<_, Label>(
-        r#"
-        SELECT id, workspace_id, name, color
-        FROM labels
-        WHERE workspace_id = $1
-        ORDER BY name
-        "#,
-    )
-    .bind(workspace_id)
-    .fetch_all(&state.pool)
-    .await
-    .map_err(AppError::DatabaseError)?;
+    let labels = if let Some(project_id) = query.project_id {
+        sqlx::query_as::<_, Label>(
+            r#"
+            SELECT DISTINCT l.id, l.workspace_id, l.name, l.color
+            FROM labels l
+            JOIN issue_labels il ON il.label_id = l.id
+            JOIN issues i ON i.id = il.issue_id
+            WHERE l.workspace_id = $1 AND i.project_id = $2
+            ORDER BY l.name
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(project_id)
+        .fetch_all(&state.pool)
+        .await
+        .map_err(AppError::DatabaseError)?
+    } else {
+        sqlx::query_as::<_, Label>(
+            r#"
+            SELECT id, workspace_id, name, color
+            FROM labels
+            WHERE workspace_id = $1
+            ORDER BY name
+            "#,
+        )
+        .bind(workspace_id)
+        .fetch_all(&state.pool)
+        .await
+        .map_err(AppError::DatabaseError)?
+    };
 
     Ok(Json(labels))
 }
@@ -168,42 +193,62 @@ pub async fn add_labels_to_issue(
         return Err(AppError::Forbidden("Access denied".into()));
     }
 
-    // Verify all labels belong to the same workspace
-    for label_id in &payload {
-        let label_exists = sqlx::query!(
-            "SELECT id FROM labels WHERE id = $1 AND workspace_id = $2",
-            label_id,
-            row.workspace_id
-        )
-        .fetch_optional(&state.pool)
-        .await
-        .map_err(AppError::DatabaseError)?
-        .is_some();
+    let mut tx = state.pool.begin().await.map_err(AppError::DatabaseError)?;
+    replace_issue_labels(&mut tx, issue_id, row.workspace_id, &payload, true).await?;
+    tx.commit().await.map_err(AppError::DatabaseError)?;
 
-        if !label_exists {
+    Ok(StatusCode::OK)
+}
+
+/// Validates that all `label_ids` belong to `workspace_id` in a single query
+/// and batch-inserts them for `issue_id`, optionally replacing existing labels.
+pub async fn replace_issue_labels(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    issue_id: Uuid,
+    workspace_id: Uuid,
+    label_ids: &[Uuid],
+    replace_existing: bool,
+) -> Result<(), AppError> {
+    let mut seen = std::collections::HashSet::with_capacity(label_ids.len());
+    let unique: Vec<Uuid> = label_ids.iter().copied().filter(|id| seen.insert(*id)).collect();
+
+    if !unique.is_empty() {
+        let count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*)::bigint FROM labels WHERE id = ANY($1) AND workspace_id = $2",
+        )
+        .bind(&unique)
+        .bind(workspace_id)
+        .fetch_one(&mut **tx)
+        .await
+        .map_err(AppError::DatabaseError)?;
+
+        if count != unique.len() as i64 {
             return Err(AppError::NotFound(
                 "Label not found or belongs to different workspace".into(),
             ));
         }
     }
 
-    // Remove existing labels and add new ones
-    sqlx::query("DELETE FROM issue_labels WHERE issue_id = $1")
-        .bind(issue_id)
-        .execute(&state.pool)
-        .await
-        .map_err(AppError::DatabaseError)?;
-
-    for label_id in payload {
-        sqlx::query("INSERT INTO issue_labels (issue_id, label_id) VALUES ($1, $2)")
+    if replace_existing {
+        sqlx::query("DELETE FROM issue_labels WHERE issue_id = $1")
             .bind(issue_id)
-            .bind(label_id)
-            .execute(&state.pool)
+            .execute(&mut **tx)
             .await
             .map_err(AppError::DatabaseError)?;
     }
 
-    Ok(StatusCode::OK)
+    if !unique.is_empty() {
+        sqlx::query(
+            "INSERT INTO issue_labels (issue_id, label_id) SELECT $1, unnest($2::uuid[]) ON CONFLICT DO NOTHING",
+        )
+        .bind(issue_id)
+        .bind(&unique)
+        .execute(&mut **tx)
+        .await
+        .map_err(AppError::DatabaseError)?;
+    }
+
+    Ok(())
 }
 
 #[utoipa::path(get, path="/api/v1/issues/{issue_id}/labels",

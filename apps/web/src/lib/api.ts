@@ -103,6 +103,10 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify(body),
       }),
+    delete: (workspaceId: string) =>
+      request<void>(`/workspaces/${workspaceId}`, {
+        method: "DELETE",
+      }),
     members: (workspaceId: string) =>
       request<WorkspaceMember[]>(`/workspaces/${workspaceId}/members`),
     invite: (workspaceId: string, body: { email: string; role: string }) =>
@@ -128,6 +132,10 @@ export const api = {
       request<Project>(`/projects/${projectId}`, {
         method: "PATCH",
         body: JSON.stringify(body),
+      }),
+    delete: (projectId: string) =>
+      request<void>(`/projects/${projectId}`, {
+        method: "DELETE",
       }),
   },
 
@@ -250,8 +258,12 @@ export const api = {
 
   // Labels
   labels: {
-    list: (workspaceId: string) =>
-      request<Label[]>(`/workspaces/${workspaceId}/labels`),
+    list: (workspaceId: string, projectId?: string) =>
+      request<Label[]>(
+        projectId
+          ? `/workspaces/${workspaceId}/labels?project_id=${encodeURIComponent(projectId)}`
+          : `/workspaces/${workspaceId}/labels`,
+      ),
     create: (workspaceId: string, body: { name: string; color?: string }) =>
       request<Label>(`/workspaces/${workspaceId}/labels`, {
         method: "POST",

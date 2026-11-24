@@ -1,3 +1,4 @@
+import { ProjectEmptyState } from "../components/ui/ProjectEmptyState";
 import { SelectBox } from "../components/ui/SelectBox";
 import {useTranslation} from "react-i18next";
 import {useLiveBoard} from "../context/useLiveBoard";
@@ -98,25 +99,15 @@ export function KanbanPage({ onIssueClick, onAddIssueToStatus }: KanbanPageProps
     setParams(next, { replace: true });
   };
 
-  if (!currentProject) {
-    return (
-      <div className="flex h-96 flex-col items-center justify-center text-center space-y-3">
-        <KanbanIcon className="h-10 w-10 text-muted-foreground/60" />
-        <h2 className="text-base font-semibold text-foreground">No Project Selected</h2>
-        <p className="text-xs text-muted-foreground max-w-sm">
-          Please select a project from the sidebar or create a new project in your workspace.
-        </p>
-      </div>
-    );
-  }
+  if (!currentProject) return <ProjectEmptyState/>;
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
+    <div className="flex min-h-full flex-col gap-3 lg:h-full lg:min-h-0">
       {/* Top Controls Bar */}
-      <div className="flex items-center justify-between pb-2 border-b border-border/50">
+      <div className="page-header">
         <div>
           <p className="text-xs font-medium text-muted-foreground">{currentProject.project_key}</p>
-          <h1 className="text-xl font-semibold tracking-tight">{currentProject.name}</h1>
+          <h1 className="page-heading">{currentProject.name}</h1>
         </div>
 
         <Button size="sm" onClick={() => onAddIssueToStatus()} className="gap-1.5">
@@ -134,8 +125,8 @@ export function KanbanPage({ onIssueClick, onAddIssueToStatus }: KanbanPageProps
         <Link to="/dashboard" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-accent">
           <LayoutDashboard size={15} aria-hidden="true" /> Dashboard
         </Link>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <SelectBox aria-label="Filter board by sprint" value={sprintId} data-filter-active={!!sprintId}
+        <div className="w-full sm:w-auto sm:ml-auto flex flex-wrap items-center gap-2">
+          <SelectBox fullWidth aria-label="Filter board by sprint" value={sprintId} data-filter-active={!!sprintId}
             unavailableLabel={sprints.isPending ? "Loading sprints…" : "Sprint unavailable"}
             onChange={event => updateFilter("sprint", event.target.value)}>
             <option value="">All sprints</option>
@@ -170,7 +161,7 @@ export function KanbanPage({ onIssueClick, onAddIssueToStatus }: KanbanPageProps
 
       {!!cfg?.fields.length && <div className="flex flex-wrap gap-2 text-sm"><SelectBox aria-label="Filter by custom field" data-filter-active={Boolean(fieldId)} value={fieldId} onChange={e=>{const next=new URLSearchParams(params);next.delete("value");if(e.target.value)next.set("field",e.target.value);else next.delete("field");setParams(next,{replace:true});}}><option value="">All custom fields</option>{cfg.fields.map(f=><option key={f.id} value={f.id}>{f.label}</option>)}</SelectBox>{fieldId && <input aria-label="Custom field value" className="min-w-0 max-w-full rounded border border-input bg-card p-2" placeholder="Exact value" value={fieldValue} onChange={e=>updateFilter("value",e.target.value)}/>}</div>}
       {/* Kanban Board Canvas */}
-      <div className="flex-1 overflow-hidden min-h-0 relative">
+      <div className="relative h-[65dvh] min-h-80 overflow-hidden lg:h-auto lg:min-h-0 lg:flex-1">
         {queries.some(q => q.isFetching && !q.isPending) && (
           <div className="absolute top-2 right-4 z-20 pointer-events-none flex items-center gap-2 rounded-full border border-primary/30 bg-card/95 px-3 py-1 shadow-md backdrop-blur-md text-xs font-medium text-foreground animate-fade-in">
             <span className="relative flex h-2 w-2">

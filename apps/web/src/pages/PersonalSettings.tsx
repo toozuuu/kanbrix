@@ -1,3 +1,4 @@
+import { useTheme, type FontScale } from "../context/ThemeContext";
 import { SelectBox } from "../components/ui/SelectBox";
 import {useTranslation} from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -55,13 +56,14 @@ export function PersonalSettings() {
 }
 function Editor({ userId, initial }: { userId: string; initial: Preferences }) {
   const {t}=useTranslation();
+  const { fontScale, setFontScale } = useTheme();
   const [draft, set] = useState(initial);
   const [busy, pending] = useState(false);
   const client = useQueryClient();
   const { toast } = useToast();
   return (
     <form
-      className="rounded-xl border border-border bg-card p-5 space-y-3"
+      className="rounded-2xl border border-border/75 bg-card p-5 sm:p-6 space-y-3 shadow-[var(--shadow-sm)]"
       onSubmit={async (e) => {
         e.preventDefault();
         pending(true);
@@ -99,6 +101,20 @@ function Editor({ userId, initial }: { userId: string; initial: Preferences }) {
           <option value="en-GB">English (UK)</option>
           <option value="en-US">English (US)</option>
           <option value="sv-SE">Svenska</option>
+        </SelectBox>
+      </label>
+      <label className="block text-sm">
+        Font size
+        <SelectBox
+          fullWidth
+          aria-label="Font size"
+          value={fontScale}
+          onChange={(e) => setFontScale(e.target.value as FontScale)}
+        >
+          <option value="compact">Compact (14px)</option>
+          <option value="default">Default (16px)</option>
+          <option value="comfortable">Comfortable (17px)</option>
+          <option value="large">Large (18px)</option>
         </SelectBox>
       </label>
       <label className="flex gap-2">

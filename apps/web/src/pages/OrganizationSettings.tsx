@@ -1,3 +1,5 @@
+import { ArrowDown, ArrowUp } from "lucide-react";
+import { ProjectSpinner } from "../components/ui/ProjectSpinner";
 import { SelectBox } from "../components/ui/SelectBox";
 import {useTranslation} from "react-i18next";
 import {useLocation} from "react-router-dom";
@@ -13,6 +15,22 @@ import { Button } from "../components/ui/Button";
 import { control } from "../components/CustomFields";
 import { useToast } from "../components/ui/Toast";
 import type { Configuration, Snapshot } from "../types/configuration";
+
+function moveItem<T>(items: T[], from: number, to: number): T[] {
+  if (
+    from === to ||
+    from < 0 ||
+    to < 0 ||
+    from >= items.length ||
+    to >= items.length
+  ) {
+    return items;
+  }
+  const next = [...items];
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
+  return next;
+}
 
 function Lines({
   label,
@@ -46,7 +64,7 @@ export function OrganizationSettings() {
         Retry organization settings
       </Button>
     );
-  if (!query.data) return <p role="status">Loading organization settings…</p>;
+  if (!query.data) return <ProjectSpinner size="sm" message="Loading organization settings."/>;
   return (
     <Editor
       key={currentWorkspace.id + "-" + query.data.revision}
@@ -156,7 +174,7 @@ function Editor({
     ...(admin ? ["History"] : []),
   ];
   return (
-    <section className="rounded-xl border border-border bg-card p-5 space-y-5">
+    <section className="rounded-2xl border border-border/75 bg-card p-5 sm:p-6 space-y-5 shadow-[var(--shadow-sm)]">
       <div>
         <h2 className="font-semibold">{t("Organization configuration")}</h2>
         <p className="text-sm text-muted-foreground">
@@ -451,19 +469,54 @@ function Editor({
                   key={i}
                   className="rounded-lg border border-border p-3 space-y-2"
                 >
-                  <label className="block text-sm">
-                    Template name
-                    <input
-                      className={control}
-                      value={t.name}
-                      onChange={(e) => update({ name: e.target.value })}
-                    />
-                  </label>
+                  <div className="flex items-end gap-2">
+                    <label className="block flex-1 text-sm">
+                      Template name
+                      {i === 0 && (
+                        <span className="ml-1.5 text-xs text-muted-foreground">
+                          (Default)
+                        </span>
+                      )}
+                      <input
+                        className={control}
+                        value={t.name}
+                        onChange={(e) => update({ name: e.target.value })}
+                      />
+                    </label>
+                    <div className="flex items-center gap-1 pb-0.5">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        aria-label={`Move template ${t.name} up`}
+                        title="Move template up"
+                        disabled={i === 0}
+                        onClick={() =>
+                          set("templates", moveItem(draft.templates, i, i - 1))
+                        }
+                      >
+                        <ArrowUp className="h-4 w-4" aria-hidden="true" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        aria-label={`Move template ${t.name} down`}
+                        title="Move template down"
+                        disabled={i === draft.templates.length - 1}
+                        onClick={() =>
+                          set("templates", moveItem(draft.templates, i, i + 1))
+                        }
+                      >
+                        <ArrowDown className="h-4 w-4" aria-hidden="true" />
+                      </Button>
+                    </div>
+                  </div>
                   {t.columns.map((c, j) => (
-                    <div key={j} className="flex gap-2">
+                    <div key={j} className="flex flex-wrap sm:flex-nowrap items-center gap-2">
                       <input
                         aria-label="Column name"
-                        className={control}
+                        className={control + " min-w-[8rem] flex-1"}
                         value={c.name}
                         onChange={(e) =>
                           update({
@@ -494,7 +547,34 @@ function Editor({
                           <option key={v}>{v}</option>
                         ))}
                       </SelectBox>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        aria-label={`Move column ${c.name} up`}
+                        title="Move column up"
+                        disabled={j === 0}
+                        onClick={() =>
+                          update({ columns: moveItem(t.columns, j, j - 1) })
+                        }
+                      >
+                        <ArrowUp className="h-4 w-4" aria-hidden="true" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        aria-label={`Move column ${c.name} down`}
+                        title="Move column down"
+                        disabled={j === t.columns.length - 1}
+                        onClick={() =>
+                          update({ columns: moveItem(t.columns, j, j + 1) })
+                        }
+                      >
+                        <ArrowDown className="h-4 w-4" aria-hidden="true" />
+                      </Button>
                       <button
+                        type="button"
                         aria-label="Remove column"
                         onClick={() =>
                           update({

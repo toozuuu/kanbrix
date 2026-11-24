@@ -199,7 +199,7 @@ export function IssueDetailModal({
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full text-base font-semibold px-2 py-1 rounded border border-input bg-card focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full text-base font-semibold px-2 py-1 rounded border border-input bg-card "
               />
               <Button
                 size="sm"
@@ -270,7 +270,7 @@ export function IssueDetailModal({
                       <div className="space-y-1 flex-1">
                         <div className="flex items-center justify-between">
                           <span className="font-semibold text-foreground">{c.author_name}</span>
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="text-xs text-muted-foreground">
                             {formatRelativeTime(c.created_at)}
                           </span>
                         </div>
@@ -315,7 +315,7 @@ export function IssueDetailModal({
             <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-3 text-xs">
               {/* Status selector */}
               <div className="space-y-1">
-                <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+                <span className="text-xs uppercase font-semibold text-muted-foreground tracking-wider">
                   {t("Status")}
                 </span>
                 <SelectBox fullWidth
@@ -335,7 +335,7 @@ export function IssueDetailModal({
 
               {/* Priority selector */}
               <div className="space-y-1">
-                <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+                <span className="text-xs uppercase font-semibold text-muted-foreground tracking-wider">
                   {t("Priority")}
                 </span>
                 <SelectBox fullWidth
@@ -350,7 +350,7 @@ export function IssueDetailModal({
 
               {/* Type selector */}
               <div className="space-y-1">
-                <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+                <span className="text-xs uppercase font-semibold text-muted-foreground tracking-wider">
                   {t("Type")}
                 </span>
                 <SelectBox fullWidth

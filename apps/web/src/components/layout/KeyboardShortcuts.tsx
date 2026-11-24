@@ -23,22 +23,22 @@ export function KeyboardShortcuts({ isOpen, onClose }: KeyboardShortcutsProps) {
   ];
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={t("keyboard_shortcuts.title")} maxWidth="sm">
-      <div className="grid gap-1 py-2">
+    <Modal isOpen={isOpen} onClose={onClose} title={t("keyboard_shortcuts.title")} maxWidth="lg">
+      <div className="grid gap-1.5 py-2">
         {shortcuts.map((shortcut, idx) => {
           const Icon = shortcut.icon;
           return (
             <div
               key={idx}
-              className="flex items-center gap-3 rounded-md p-2 hover:bg-accent"
+              className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-accent/60 transition-colors"
             >
-              <Icon className="h-4 w-4 text-muted-foreground" />
-              <span className="flex-1 text-sm">{shortcut.action}</span>
-              <div className="flex gap-1">
+              <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <span className="min-w-0 flex-1 text-sm">{shortcut.action}</span>
+              <div className="flex shrink-0 gap-1">
                 {shortcut.keys.split(" ").map((key, kIdx) => (
                   <kbd
                     key={kIdx}
-                    className="px-2 py-0.5 text-xs font-semibold bg-muted rounded"
+                    className="min-w-[1.5rem] text-center px-2 py-0.5 text-xs font-mono font-semibold bg-muted border border-border/60 rounded-md shadow-sm"
                   >
                     {key}
                   </kbd>

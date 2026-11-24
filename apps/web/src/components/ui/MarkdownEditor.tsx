@@ -22,7 +22,7 @@ function MarkdownToolbarButton({ label, onClick, shortcut }: MarkdownToolbarButt
             className="px-2 py-0.5 text-xs bg-secondary hover:bg-secondary/60 rounded border border-border/40"
             title={label}>
             {label}
-            {shortcut && <span className="ml-1 text-[10px] opacity-60">[{shortcut}]</span>}
+            {shortcut && <span className="ml-1 text-xs opacity-60">[{shortcut}]</span>}
         </button>
     );
 }

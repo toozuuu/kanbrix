@@ -153,10 +153,10 @@ pub async fn run(pool: sqlx::PgPool) {
     }
 }
 async fn deliver(pool: &sqlx::PgPool, client: &reqwest::Client) -> Result<(), AppError> {
-    let known = destinations()?;
     let mut tx = pool.begin().await?;
     let row:Option<(i64,Uuid,String,Value)>=sqlx::query_as("SELECT id,workspace_id,destination,payload FROM integration_events WHERE NOT delivered AND attempts<5 AND destination<>'' AND next_attempt<=now() ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED").fetch_optional(&mut *tx).await?;
     if let Some((id, ws, name, payload)) = row {
+        let known = destinations()?;
         let mut success = false;
         if let Some(dest) = known.get(&ws).and_then(|m| m.get(&name)) {
             let mut request = client

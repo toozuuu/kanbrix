@@ -1,3 +1,5 @@
+import { ProjectSpinner } from "../components/ui/ProjectSpinner";
+import { ProjectEmptyState } from "../components/ui/ProjectEmptyState";
 import { SelectBox } from "../components/ui/SelectBox";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -14,10 +16,21 @@ import {
   type Column,
   type Workflow,
 } from "../context/useWorkflow";
+function newColumnId(): string {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  // Self-hosted HTTP deployments still support getRandomValues.
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 15) | 64;
+  bytes[8] = (bytes[8] & 63) | 128;
+  const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+  return [hex.slice(0,8), hex.slice(8,12), hex.slice(12,16), hex.slice(16,20), hex.slice(20)].join("-");
+}
 export function WorkflowSettings() {
   const { currentProject, currentWorkspace } = useWorkspace();
   const q = useWorkflow();
-  if (!q.data || !currentProject || !currentWorkspace) return null;
+  if (!currentProject || !currentWorkspace) return <ProjectEmptyState/>;
+  if (q.isError && !q.data) return <p role="alert">Could not load workflow settings. <button className="underline" onClick={() => void q.refetch()}>Retry</button></p>;
+  if (!q.data) return <ProjectSpinner size="sm" message="Loading workflow settings."/>;
   return (
     <WorkflowEditor
       key={currentProject.id + "-" + q.data.revision}
@@ -43,7 +56,9 @@ function WorkflowEditor({
   const [destinations, replace] = useState<Record<string, string>>({});
   const [review, preview] = useState(false);
   const [busy, pending] = useState(false);
-  const cfg = useConfiguration().data?.configuration;
+  const configuration = useConfiguration();
+  const cfg = configuration.data?.configuration;
+  const [appliedTemplate, setAppliedTemplate] = useState("");
   const client = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -55,6 +70,37 @@ function WorkflowEditor({
   const removed = initial.columns.filter(
     (c) => !draft.columns.some((k) => k.id === c.id),
   );
+  const needsDestination = removed.some(column => column.issues > 0 &&
+    !draft.columns.some(target => target.id === destinations[column.id]));
+  function applyTemplate(name: string) {
+    const template = cfg?.templates.find(item => item.name === name);
+    if (!template) return;
+    // Reserve exact matches first so reordering columns in the same category preserves their issues.
+    const matches = template.columns.map(column => draft.columns.find(old =>
+      old.name === column.name && old.category === column.category));
+    const used = new Set(matches.map(column => column?.id));
+    const next = template.columns.map((column, index) => {
+      const old = matches[index] ?? draft.columns.find(item => item.category === column.category && !used.has(item.id));
+      const id = old?.id ?? newColumnId();
+      used.add(id);
+      return { ...column, id, issues: old?.issues ?? 0 };
+    });
+    const ids = new Map(next.map(column => [column.name, column.id]));
+    const transitions: string[][] = [];
+    for (const [from, to] of template.transitions ?? []) {
+      const source = ids.get(from), target = ids.get(to);
+      if (!source || !target) {
+        toast("This template references a missing workflow column.", "error");
+        return;
+      }
+      transitions.push([source, target]);
+    }
+    set({ ...draft, columns: next, transitions, sprints: template.sprints,
+      form: template.form ?? { types: [], priorities: [], hidden_fields: [] } });
+    replace({});
+    setAppliedTemplate(name);
+    preview(false);
+  }
   function columns(next: Column[]) {
     set({
       ...draft,
@@ -70,7 +116,7 @@ function WorkflowEditor({
     try {
       await request(`/projects/${project}/workflow`, {
         method: "PUT",
-        body: JSON.stringify({ ...draft, replacements: destinations }),
+        body: JSON.stringify({ ...draft, replacements: Object.fromEntries(removed.filter(column => column.issues > 0).map(column => [column.id, destinations[column.id]])) }),
       });
       await client.invalidateQueries();
       toast("Project workflow published", "success");
@@ -81,7 +127,7 @@ function WorkflowEditor({
     }
   }
   return (
-    <section className="rounded-xl border border-border bg-card p-5 space-y-4">
+    <section className="rounded-2xl border border-border/75 bg-card p-5 sm:p-6 space-y-4 shadow-[var(--shadow-sm)]">
       <h2 className="font-semibold">{name} workflow</h2>
       <fieldset
         disabled={!initial.editable || busy}
@@ -91,41 +137,16 @@ function WorkflowEditor({
         <label className="block text-sm">
           Apply organization template
           <SelectBox fullWidth
-            value=""
-            onChange={(e) => {
-              const t = cfg?.templates.find((t) => t.name === e.target.value);
-              if (t) {
-                const used = new Set<string>();
-                const cols = t.columns.map((c) => {
-                  const old = draft.columns.find(
-                    (v) => v.category === c.category && !used.has(v.id),
-                  );
-                  const id = old?.id ?? crypto.randomUUID();
-                  used.add(id);
-                  return { ...c, id, issues: old?.issues ?? 0 };
-                });
-                set({
-                  ...draft,
-                  columns: cols,
-                  form: t.form ?? {
-                    types: [],
-                    priorities: [],
-                    hidden_fields: [],
-                  },
-                  sprints: t.sprints,
-                  transitions: (t.transitions ?? []).map((edge) =>
-                    edge.map((n) => cols.find((c) => c.name === n)!.id),
-                  ),
-                });
-              }
-            }}
+            value={appliedTemplate}
+            disabled={!cfg?.templates.length}
+            onChange={event => applyTemplate(event.target.value)}
           >
-            <option value="">Choose template</option>
-            {cfg?.templates.map((t) => (
-              <option key={t.name}>{t.name}</option>
-            ))}
+            <option value="" disabled>{configuration.isPending ? "Loading templates..." : cfg && !cfg.templates.length ? "No published templates" : "Choose template"}</option>
+            {cfg?.templates.map(template => <option key={template.name} value={template.name}>{template.name}</option>)}
           </SelectBox>
         </label>
+        {configuration.isError && <p role="alert">Could not load templates. <button className="underline" onClick={() => void configuration.refetch()}>Retry</button></p>}
+        {appliedTemplate && <p role="status" className="text-sm text-muted-foreground">{appliedTemplate} applied to the draft. Preview and publish to update this project.</p>}
         {draft.columns.map((c, i) => (
           <div className="flex items-center gap-2" key={c.id}>
             <input
@@ -185,7 +206,7 @@ function WorkflowEditor({
             columns([
               ...draft.columns,
               {
-                id: crypto.randomUUID(),
+                id: newColumnId(),
                 name: "New column",
                 category: "Todo",
                 issues: 0,
@@ -303,7 +324,7 @@ function WorkflowEditor({
         )}
         {initial.editable && (
           <Button
-            disabled={busy}
+            disabled={busy || needsDestination}
             onClick={() => (review ? void save() : preview(true))}
           >
             {review ? "Publish workflow" : "Preview workflow"}

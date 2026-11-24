@@ -4,42 +4,66 @@
 
 @layer base {
   :root {
-    /* Colors - Using a sophisticated blue/purple accent scheme */
-    --background: 210 20% 100%;
-    --foreground: 222 47% 12%;
+    --chart-main: #246e55;
+    --chart-secondary: #8b4860;
+    --chart-backlog: #677381;
+    --chart-todo: #376a9c;
+    --chart-active: #996619;
+    --font-ui: "Inter", "Segoe UI", Arial, sans-serif;
+    --font-code: "JetBrains Mono", Consolas, monospace;
+    --focus-width: 2px;
+    --focus-offset: 2px;
+    --font-display: Georgia, Cambria, serif;
+    --type-caption: .75rem;
+    --type-body: .875rem;
+    --type-title: clamp(1.375rem, 1.05rem + 1.1vw, 1.875rem);
+    --space-1: .25rem;
+    --space-2: .5rem;
+    --space-3: .75rem;
+    --space-4: 1rem;
+    --space-6: 1.5rem;
+    --button-radius: .625rem;
+    --input-radius: var(--button-radius);
+    --card-radius: 1rem;
+    --modal-radius: 1.25rem;
+    --field-surface: var(--card);
+    --nav-surface: var(--card);
+    color-scheme: light;
+    --background: 210 20% 96%;
+    --foreground: 215 23% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 12%;
+    --card-foreground: 215 23% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 12%;
+    --popover-foreground: 215 23% 15%;
 
-    --primary: 217 100% 54%;
+    --primary: 161 52% 24%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 217 100% 50%;
+    --primary-hover: 162 55% 18%;
     --primary-foreground-alt: 210 40% 98%;
 
-    --secondary: 220 15% 96%;
-    --secondary-foreground: 222 47% 12%;
+    --secondary: 210 16% 93%;
+    --secondary-foreground: 215 23% 15%;
 
-    --muted: 220 15% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 210 14% 94%;
+    --muted-foreground: 215 12% 36%;
 
-    --accent: 217 90% 90%;
-    --accent-foreground: 222 47% 12%;
+    --accent: 152 29% 91%;
+    --accent-foreground: 215 23% 15%;
 
-    --success: 142 73% 55%;
+    --success: 148 52% 27%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 54%;
+    --warning: 35 85% 29%;
     --warning-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 61%;
+    --destructive: 4 64% 40%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 15% 86%;
-    --input: 220 15% 80%;
-    --ring: 217 100% 54%;
+    --border: 212 15% 83%;
+    --input: 214 10% 49%;
+    --ring: 161 52% 24%;
 
     --radius: 0.75rem;
     --radius-sm: 0.5rem;
@@ -55,41 +79,53 @@
     --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   }
 
+  html[data-font-scale="compact"] { font-size: 14px; }
+  html[data-font-scale="default"] { font-size: 16px; }
+  html[data-font-scale="comfortable"] { font-size: 17px; }
+  html[data-font-scale="large"] { font-size: 18px; }
+
   .dark {
-    --background: 210 18% 12%;
-    --foreground: 0 0% 93%;
+    --field-surface: var(--background);
+    color-scheme: dark;
+    --chart-main: #83cfac;
+    --chart-secondary: #e7a0b7;
+    --chart-backlog: #a5b1ba;
+    --chart-todo: #8cbbea;
+    --chart-active: #e2b56c;
+    --background: 218 20% 9%;
+    --foreground: 210 22% 94%;
 
-    --card: 215 15% 18%;
-    --card-foreground: 0 0% 93%;
+    --card: 218 16% 14%;
+    --card-foreground: 210 22% 94%;
 
-    --popover: 215 15% 18%;
-    --popover-foreground: 0 0% 93%;
+    --popover: 216 15% 18%;
+    --popover-foreground: 210 22% 94%;
 
-    --primary: 217 91% 66%;
-    --primary-foreground: 210 28% 12%;
-    --primary-hover: 217 91% 71%;
+    --primary: 155 44% 71%;
+    --primary-foreground: 156 16% 10%;
+    --primary-hover: 155 44% 79%;
 
-    --secondary: 215 20% 18%;
-    --secondary-foreground: 0 0% 93%;
+    --secondary: 216 14% 22%;
+    --secondary-foreground: 210 22% 94%;
 
-    --muted: 215 25% 16%;
-    --muted-foreground: 217 13% 70%;
+    --muted: 216 13% 19%;
+    --muted-foreground: 214 15% 75%;
 
-    --accent: 215 25% 20%;
-    --accent-foreground: 0 0% 93%;
+    --accent: 155 16% 23%;
+    --accent-foreground: 210 22% 94%;
 
-    --success: 142 73% 55%;
-    --success-foreground: 0 0% 100%;
+    --success: 150 43% 70%;
+    --success-foreground: 218 20% 9%;
 
-    --warning: 38 92% 54%;
-    --warning-foreground: 0 0% 100%;
+    --warning: 38 78% 69%;
+    --warning-foreground: 218 20% 9%;
 
-    --destructive: 0 72% 56%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 3 75% 73%;
+    --destructive-foreground: 156 16% 10%;
 
-    --border: 215 20% 25%;
-    --input: 215 20% 30%;
-    --ring: 217 91% 66%;
+    --border: 216 12% 31%;
+    --input: 214 12% 56%;
+    --ring: 155 44% 71%;
 
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.2);
     --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3), 0 2px 4px rgba(0, 0, 0, 0.25);
@@ -125,7 +161,14 @@
   background: hsl(var(--muted-foreground) / 0.4);
 }
 
-:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+/* Keep the keyboard indicator independent of the workspace brand color. */
+:focus-visible {
+  outline: var(--focus-width) solid hsl(var(--ring));
+  outline-offset: var(--focus-offset);
+}
+@media (forced-colors: active) {
+  :focus-visible { outline-color: Highlight; }
+}
 .dropdown-surface {
   padding: .375rem;
   border: 1px solid hsl(var(--input) / .75);
@@ -161,9 +204,9 @@ input:not([type="checkbox"], [type="radio"], [type="file"], [type="hidden"], [ty
   padding-inline: .8rem 2.35rem;
   border: 1px solid hsl(var(--input));
   border-radius: .5rem;
-  background-color: hsl(var(--background));
+  background-color: hsl(var(--field-surface));
   color: hsl(var(--foreground));
-  font-size: .875rem;
+  font-size: var(--type-body);
   line-height: 1.4;
   text-overflow: ellipsis;
   cursor: pointer;
@@ -185,7 +228,10 @@ input:not([type="checkbox"], [type="radio"], [type="file"], [type="hidden"], [ty
   border-color: hsl(var(--primary));
 }
 .select-box > select:not(:disabled):hover { border-color: hsl(var(--primary)); }
-.select-box > select:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+.select-box > select:focus-visible {
+  outline: var(--focus-width) solid hsl(var(--ring));
+  outline-offset: var(--focus-offset);
+}
 .select-box > select:open { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
 .select-box > select:open + svg { transform: translateY(-50%) rotate(180deg); }
 .select-box > select:disabled { color: hsl(var(--muted-foreground)); background: hsl(var(--secondary)); cursor: not-allowed; }
@@ -199,7 +245,7 @@ input:not([type="checkbox"], [type="radio"], [type="file"], [type="hidden"], [ty
   padding: .25rem;
   border: 1px solid hsl(var(--input));
   border-radius: .5rem;
-  background: hsl(var(--background));
+  background: hsl(var(--field-surface));
 }
 .select-checklist label { display: flex; align-items: center; gap: .65rem; min-height: 2.25rem; padding: .4rem .6rem; cursor: pointer; overflow-wrap: anywhere; }
 .select-checklist input { accent-color: hsl(var(--primary)); flex-shrink: 0; }
@@ -226,14 +272,14 @@ input:not([type="checkbox"], [type="radio"], [type="file"], [type="hidden"], [ty
       box-shadow: 0 8px 24px -8px rgb(0 0 0 / .32);
     }
     .select-box > select option {
-      min-height: 2.125rem;
-      padding: .45rem .65rem;
+      min-height: 2rem;
+      padding: .35rem .6rem;
       display: grid;
       grid-template-columns: 1rem minmax(0, 1fr);
       align-items: center;
-      gap: .55rem;
+      gap: .5rem;
       border-radius: .35rem;
-      font-size: .8125rem;
+      font-size: var(--type-body);
       white-space: normal;
       overflow-wrap: anywhere;
     }
@@ -253,11 +299,126 @@ input:not([type="checkbox"], [type="radio"], [type="file"], [type="hidden"], [ty
 @media (pointer: coarse) {
   :root { --control-height: 2.75rem; }
   .select-checklist label { min-height: var(--control-height); }
-  .select-box > select { font-size: 1rem; }
+  input:not([type="checkbox"], [type="radio"]), textarea, .select-box > select { font-size: 1rem; }
 }
 
 @media (forced-colors: active) {
   .select-box-arrow { color: ButtonText; }
   .select-box > select:disabled + svg { color: GrayText; opacity: 1; }
   .select-box > select option:checked { outline: 1px solid Highlight; }
+}
+
+.page-heading {
+  font-family: var(--font-display);
+  font-size: var(--type-title);
+  line-height: 1.15;
+  letter-spacing: -.035em;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 1.25rem 1.5rem;
+  border-radius: var(--card-radius);
+  border: 1px solid hsl(var(--border) / 0.75);
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.08), hsl(var(--card)) 55%);
+  box-shadow: var(--shadow-sm);
+}
+
+.saas-card {
+  border-radius: var(--card-radius);
+  border: 1px solid hsl(var(--border) / 0.75);
+  background: hsl(var(--card));
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+.saas-card-interactive:hover {
+  border-color: hsl(var(--primary) / 0.35);
+  box-shadow: var(--shadow-md);
+}
+@media (pointer: coarse) {
+  .ui-button, nav a[aria-current], .workspace-nav a, dialog button[aria-label="Close dialog"] { min-height: 44px; }
+  .ui-button, dialog button[aria-label="Close dialog"] { min-width: 44px; }
+}
+
+.auth-layout {
+  display: grid;
+  width: min(100%, 26rem);
+  gap: var(--space-6);
+  padding: var(--space-4);
+}
+@media (min-width: 48rem) {
+  .auth-layout {
+    width: min(100%, 54rem);
+    grid-template-columns: 1fr 1.2fr;
+    gap: 3rem;
+    align-items: start;
+    border-block: 1px solid hsl(var(--border));
+    padding-block: 3rem;
+  }
+}
+
+
+.workspace-brand {
+  --primary: var(--brand-color);
+  --primary-foreground: var(--brand-foreground);
+}
+
+/* Keep the workspace hue readable on dark cards and branded buttons. */
+.dark .workspace-brand {
+  --primary: var(--brand-hue) var(--brand-saturation) max(76%, var(--brand-lightness));
+  --primary-hover: var(--brand-hue) var(--brand-saturation) max(82%, var(--brand-lightness));
+  --primary-foreground: 218 20% 9%;
+}
+
+
+.motion-board-column[data-drop-active] { box-shadow: inset 0 0 0 2px hsl(var(--primary) / .55); }
+
+/* Shared interaction timing; motion never blocks input or delays a state change. */
+@media (prefers-reduced-motion: no-preference) {
+  :root {
+    --motion-fast: 120ms;
+    --motion-enter: 200ms;
+    --motion-ease: cubic-bezier(.2,.75,.25,1);
+  }
+
+  #workspace-content > *, .auth-layout, .settings-panels > :not([hidden]),
+  .motion-report, .motion-feedback, .motion-issue-row {
+    animation: content-arrive var(--motion-enter) var(--motion-ease);
+  }
+  .dropdown-surface, .motion-dialog[open] {
+    animation: surface-open var(--motion-enter) var(--motion-ease);
+  }
+  .dropdown-surface { transform-origin: top; }
+  .motion-dialog[open]::backdrop { animation: backdrop-appear var(--motion-enter) ease-out; }
+  .motion-toast { animation: notification-arrive var(--motion-enter) var(--motion-ease); }
+
+  .ui-button, .launch-actions a, .demo-tools button, .demo-ticket button,
+  .release-ticket button {
+    transition: background-color var(--motion-fast), color var(--motion-fast),
+      border-color var(--motion-fast), translate var(--motion-fast) var(--motion-ease);
+  }
+  :is(.ui-button, .launch-actions a, .demo-tools button, .demo-ticket button,
+      .release-ticket button):active:not(:disabled) { translate: 0 1px; }
+
+  .motion-rail { transition: width var(--motion-enter) var(--motion-ease); }
+  .motion-board-column {
+    transition: background-color var(--motion-fast), border-color var(--motion-fast), box-shadow var(--motion-fast);
+  }
+  .workspace-nav a svg { transition: translate var(--motion-fast) var(--motion-ease); }
+  @media (hover: hover) {
+    .motion-project-card:hover, .motion-project-card:focus-within { translate: 0 -2px; }
+    .workspace-nav a:hover svg { translate: 2px 0; }
+    .launch-actions a:hover svg { translate: 0 -1px; }
+    .launch-actions a svg { transition: translate var(--motion-fast); }
+  }
+
+  @keyframes content-arrive { from { opacity: .65; translate: 0 3px; } }
+  @keyframes surface-open { from { opacity: .5; scale: .985; } }
+  @keyframes backdrop-appear { from { opacity: 0; } }
+  @keyframes notification-arrive { from { opacity: 0; translate: 0 8px; } }
 }

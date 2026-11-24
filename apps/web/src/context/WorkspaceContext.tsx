@@ -7,6 +7,7 @@ type WorkspaceContextType = {
   workspaces: Workspace[];
   currentWorkspace: Workspace | null;
   projects: Project[];
+  projectStatus: "loading" | "ready" | "error";
   currentProject: Project | null;
   labels: Label[];
   isLoading: boolean;
@@ -28,6 +29,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [labels, setLabels] = useState<Label[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  const [projectStatus, setProjectStatus] = useState<WorkspaceContextType["projectStatus"]>("loading");
+  const projectRequest = useRef(0);
   const activeWs=useRef(currentWorkspace?.id);
   activeWs.current=currentWorkspace?.id;
   const refreshWorkspaces = async () => {
@@ -67,9 +70,12 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    const request = ++projectRequest.current;
+    setProjectStatus("loading");
     try {
       const list = await api.projects.list(currentWorkspace.id);
-      if(activeWs.current!==currentWorkspace.id)return;
+      if(activeWs.current !== currentWorkspace.id || request !== projectRequest.current) return;
+      setProjectStatus("ready");
       setProjects(list);
       if (list.length > 0) {
         const savedProjectId = localStorage.getItem("rusttrack-active-project");
@@ -79,7 +85,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         setCurrentProject(null);
       }
     } catch (e) {
-      console.error("Failed to load projects", e);
+      if (activeWs.current === currentWorkspace.id && request === projectRequest.current) setProjectStatus("error");
     }
   };
 
@@ -119,7 +125,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   }, [currentProject?.id]);
 
   const setCurrentWorkspace = (ws: Workspace) => {
-    if(ws.id!==activeWs.current){activeWs.current=ws.id;setProjects([]);setCurrentProject(null);setLabels([]);}
+    if(ws.id!==activeWs.current){activeWs.current=ws.id;setProjectStatus("loading");setProjects([]);setCurrentProject(null);setLabels([]);}
     setCurrentWorkspaceState(ws);
     refreshLabels();
   };
@@ -130,6 +136,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         workspaces,
         currentWorkspace,
         projects,
+        projectStatus,
         currentProject,
         labels,
         isLoading,

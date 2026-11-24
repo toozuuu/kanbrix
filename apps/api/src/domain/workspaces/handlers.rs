@@ -198,6 +198,27 @@ pub async fn update_workspace(
     }))
 }
 
+pub async fn delete_workspace(
+    auth_user: AuthenticatedUser,
+    Path(workspace_id): Path<Uuid>,
+    State(state): State<AppState>,
+) -> Result<axum::http::StatusCode, AppError> {
+    let role = verify_workspace_membership(&state.pool, workspace_id, auth_user.id).await?;
+    if !role.can_manage_workspace() {
+        return Err(AppError::Forbidden(
+            "Only workspace owners and admins can delete workspaces".into(),
+        ));
+    }
+
+    sqlx::query("DELETE FROM workspaces WHERE id = $1")
+        .bind(workspace_id)
+        .execute(&state.pool)
+        .await
+        .map_err(AppError::DatabaseError)?;
+
+    Ok(axum::http::StatusCode::NO_CONTENT)
+}
+
 #[utoipa::path(get,path="/api/v1/workspaces/{workspace_id}/members",params(("workspace_id"=Uuid,Path,description="workspace id")),responses((status=200,body=[WorkspaceMemberResponse])))]
 pub async fn list_members(
     auth_user: AuthenticatedUser,

@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { ProjectEmptyState } from "../components/ui/ProjectEmptyState";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useWorkspace } from "../context/WorkspaceContext";
 import { api } from "../lib/api";
 import { Issue, Sprint } from "../types";
 import { SprintPlanning } from "../components/sprints/SprintPlanning";
 import { NewSprintModal } from "../components/sprints/NewSprintModal";
 import { ProjectSpinner } from "../components/ui/ProjectSpinner";
-import { ListTodo } from "lucide-react";
 
 interface BacklogPageProps {
   onIssueClick: (issue: Issue) => void;
@@ -19,50 +19,56 @@ export function BacklogPage({ onIssueClick, onOpenNewIssue }: BacklogPageProps) 
   const [isNewSprintModalOpen, setIsNewSprintModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadData = async () => {
-    if (!currentProject) {
+  const [loadFailed, setLoadFailed] = useState(false);
+  const latestRequest = useRef(0);
+  const projectId = currentProject?.id;
+
+  const loadData = useCallback(async () => {
+    const request = ++latestRequest.current;
+    setLoadFailed(false);
+    if (!projectId) {
       setIsLoading(false);
       return;
     }
     try {
       const [sprintList, issueList] = await Promise.all([
-        api.sprints.list(currentProject.id),
-        api.issues.list(currentProject.id),
+        api.sprints.list(projectId),
+        api.issues.list(projectId),
       ]);
 
+      if (request !== latestRequest.current) return;
       setSprints(sprintList);
       setIssues(issueList);
-    } catch (e) {
-      console.error(e);
+    } catch {
+      if (request === latestRequest.current) setLoadFailed(true);
     } finally {
-      setIsLoading(false);
+      if (request === latestRequest.current) setIsLoading(false);
     }
-  };
+  }, [projectId]);
 
   useEffect(() => {
     setIsLoading(true);
-    loadData();
-  }, [currentProject?.id]);
+    void loadData();
+    return () => { latestRequest.current++; };
+  }, [loadData]);
 
-  if (!currentProject) {
-    return (
-      <div className="flex h-96 flex-col items-center justify-center text-center space-y-3">
-        <ListTodo className="h-10 w-10 text-muted-foreground/60" />
-        <h2 className="text-base font-semibold text-foreground">No Project Selected</h2>
-        <p className="text-xs text-muted-foreground max-w-sm">
-          Please select a project from the sidebar to plan sprints and view the backlog.
-        </p>
-      </div>
-    );
-  }
+  if (!currentProject) return <ProjectEmptyState/>;
 
   if (isLoading) {
     return (
       <ProjectSpinner
-        message="Loading backlog & sprints…"
+        message="Loading backlog & sprintsâ€¦"
         subMessage={`Project: ${currentProject.name}`}
       />
     );
+  }
+
+  if (loadFailed) {
+    return <section className="space-y-3 py-6">
+      <h1 className="page-heading">Backlog</h1>
+      <p role="alert">Could not load this project’s sprints and issues.</p>
+      <button className="min-h-11 text-primary underline" onClick={() => { setIsLoading(true); void loadData(); }}>Retry</button>
+    </section>;
   }
 
   return (

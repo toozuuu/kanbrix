@@ -41,7 +41,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             key={t.id}
             role={t.type === "error" ? "alert" : "status"}
             className={cn(
-              "pointer-events-auto flex items-center justify-between p-4 rounded-xl border shadow-lg transition-all animate-in slide-in-from-bottom-2",
+              "pointer-events-auto flex items-center justify-between p-4 rounded-2xl border bg-card/95 backdrop-blur-md shadow-[var(--shadow-lg)] motion-toast",
               t.type === "success" && "bg-card border-emerald-500/20 text-foreground",
               t.type === "error" && "bg-card border-destructive/30 text-foreground",
               t.type === "info" && "bg-card border-border text-foreground"

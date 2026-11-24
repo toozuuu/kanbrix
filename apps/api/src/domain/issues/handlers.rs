@@ -124,39 +124,42 @@ pub async fn list_project_issues(
     .map_err(AppError::DatabaseError)?;
 
     let issue_ids: Vec<Uuid> = rows.iter().map(|row| row.id).collect();
-    let all_labels = sqlx::query_as::<_, (Uuid, Uuid, Uuid, String, String)>(
-        r#"
-        SELECT il.issue_id, l.id, l.workspace_id, l.name, l.color
-        FROM issue_labels il
-        JOIN labels l ON l.id = il.label_id
-        WHERE il.issue_id = ANY($1)
-        ORDER BY l.name
-        "#,
-    )
-    .bind(&issue_ids)
-    .fetch_all(&state.pool)
-    .await
-    .map_err(AppError::DatabaseError)?;
     let mut labels_map: HashMap<Uuid, Vec<Label>> = HashMap::new();
-    for (issue_id, id, workspace_id, name, color) in all_labels {
-        labels_map.entry(issue_id).or_default().push(Label {
-            id,
-            workspace_id,
-            name,
-            color,
-        });
+    if !issue_ids.is_empty() {
+        let all_labels = sqlx::query_as::<_, (Uuid, Uuid, Uuid, String, String)>(
+            r#"
+            SELECT il.issue_id, l.id, l.workspace_id, l.name, l.color
+            FROM issue_labels il
+            JOIN labels l ON l.id = il.label_id
+            WHERE il.issue_id = ANY($1)
+            ORDER BY l.name
+            "#,
+        )
+        .bind(&issue_ids)
+        .fetch_all(&state.pool)
+        .await
+        .map_err(AppError::DatabaseError)?;
+        for (issue_id, id, workspace_id, name, color) in all_labels {
+            labels_map.entry(issue_id).or_default().push(Label {
+                id,
+                workspace_id,
+                name,
+                color,
+            });
+        }
     }
 
     let issues = rows
         .into_iter()
         .map(|r| {
-            let labels = labels_map.get(&r.id).cloned().unwrap_or_default();
+            let labels = labels_map.remove(&r.id).unwrap_or_default();
+            let identifier = format!("{}-{}", r.project_key, r.issue_number);
             IssueResponse {
                 id: r.id,
                 project_id: r.project_id,
-                project_key: r.project_key.clone(),
+                project_key: r.project_key,
                 issue_number: r.issue_number,
-                identifier: format!("{}-{}", r.project_key, r.issue_number),
+                identifier,
                 title: r.title,
                 description: r.description,
                 r#type: r.r#type,
@@ -326,34 +329,14 @@ pub async fn create_issue(
 
     // Handle labels if provided
     if let Some(label_ids) = payload.labels {
-        // Verify all labels belong to the workspace
-        for label_id in &label_ids {
-            let label_exists = sqlx::query!(
-                "SELECT id FROM labels WHERE id = $1 AND workspace_id = $2",
-                label_id,
-                proj.workspace_id
-            )
-            .fetch_optional(&state.pool)
-            .await
-            .map_err(AppError::DatabaseError)?
-            .is_some();
-
-            if !label_exists {
-                return Err(AppError::NotFound(
-                    "Label not found or belongs to different workspace".into(),
-                ));
-            }
-        }
-
-        // Add labels to issue
-        for label_id in label_ids {
-            sqlx::query("INSERT INTO issue_labels (issue_id, label_id) VALUES ($1, $2)")
-                .bind(issue.id)
-                .bind(label_id)
-                .execute(&mut *tx)
-                .await
-                .map_err(AppError::DatabaseError)?;
-        }
+        crate::domain::labels::handlers::replace_issue_labels(
+            &mut tx,
+            issue.id,
+            proj.workspace_id,
+            &label_ids,
+            false,
+        )
+        .await?;
     }
 
     tx.commit().await.map_err(AppError::DatabaseError)?;
@@ -592,40 +575,14 @@ pub async fn update_issue(
 
     // Handle labels update if provided (inside transaction)
     if let Some(label_ids) = payload.labels {
-        // Verify all labels belong to the same workspace
-        for label_id in &label_ids {
-            let label_exists = sqlx::query!(
-                "SELECT id FROM labels WHERE id = $1 AND workspace_id = $2",
-                label_id,
-                existing.workspace_id
-            )
-            .fetch_optional(&mut *tx)
-            .await
-            .map_err(AppError::DatabaseError)?
-            .is_some();
-
-            if !label_exists {
-                return Err(AppError::NotFound(
-                    "Label not found or belongs to different workspace".into(),
-                ));
-            }
-        }
-
-        // Remove existing labels and add new ones
-        sqlx::query("DELETE FROM issue_labels WHERE issue_id = $1")
-            .bind(issue_id)
-            .execute(&mut *tx)
-            .await
-            .map_err(AppError::DatabaseError)?;
-
-        for label_id in label_ids {
-            sqlx::query("INSERT INTO issue_labels (issue_id, label_id) VALUES ($1, $2)")
-                .bind(issue_id)
-                .bind(label_id)
-                .execute(&mut *tx)
-                .await
-                .map_err(AppError::DatabaseError)?;
-        }
+        crate::domain::labels::handlers::replace_issue_labels(
+            &mut tx,
+            issue_id,
+            existing.workspace_id,
+            &label_ids,
+            true,
+        )
+        .await?;
     }
 
     tx.commit().await.map_err(AppError::DatabaseError)?;

@@ -11,9 +11,9 @@ import { ApiError } from "./lib/api";
 
 // Pages
 import { LandingPage } from "./pages/LandingPage";
-import { LoginPage } from "./pages/LoginPage";
-import { RegisterPage } from "./pages/RegisterPage";
 
+const LoginPage = lazy(() => import("./pages/LoginPage").then(m => ({ default: m.LoginPage })));
+const RegisterPage = lazy(() => import("./pages/RegisterPage").then(m => ({ default: m.RegisterPage })));
 const ProtectedLayout = lazy(() => import("./ProtectedLayout"));
 
 const queryClient = new QueryClient({
@@ -35,8 +35,8 @@ export function App() {
               <BrowserRouter>
                 <Routes>
                   <Route path="/" element={<LandingPage />} />
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/register" element={<RegisterPage />} />
+                  <Route path="/login" element={<Suspense fallback={<ProjectSpinner fullScreen message="Loading…" />}><LoginPage /></Suspense>} />
+                  <Route path="/register" element={<Suspense fallback={<ProjectSpinner fullScreen message="Loading…" />}><RegisterPage /></Suspense>} />
                   <Route path="/*" element={<Suspense fallback={<ProjectSpinner fullScreen message="Loading Kanbrix…" />}><ProtectedLayout /></Suspense>} />
                 </Routes>
               </BrowserRouter>

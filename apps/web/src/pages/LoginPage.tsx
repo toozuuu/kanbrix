@@ -5,8 +5,13 @@ import { Input } from "../components/ui/Input";
 import { Button } from "../components/ui/Button";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../components/ui/Toast";
+import { useDocumentMeta } from "../lib/useDocumentMeta";
 
 export function LoginPage() {
+  useDocumentMeta({
+    title: "Sign in | Kanbrix",
+    description: "Sign in to your Kanbrix workspace to manage issues, Kanban boards, and sprints.",
+  });
   const {t}=useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,20 +37,20 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-7">
-        <div className="text-center space-y-2">
+    <div className="min-h-screen bg-gradient-to-b from-primary/[0.05] via-background to-background flex flex-col items-center justify-center p-4">
+      <div className="auth-layout rounded-2xl border border-border/75 bg-card p-6 sm:p-8 shadow-[var(--shadow-lg)]">
+        <div className="space-y-3">
           <Link to="/" className="inline-flex items-center gap-2 font-bold tracking-tight text-foreground">
             <img src="/kanbrix.svg" alt="" width="32" height="32" />
             <span className="text-lg">
               Kanbrix
             </span>
           </Link>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t("Sign in to your account")}</h1>
+          <h1 className="page-heading">{t("Sign in to your account")}</h1>
           <p className="text-xs text-muted-foreground">Enter your credentials below to access your workspaces</p>
         </div>
 
-        <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-sm space-y-4">
+        <div className="border-t border-border pt-6 space-y-4 md:border-t-0 md:border-l md:pl-10 md:pt-0">
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
               type="email"

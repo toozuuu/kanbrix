@@ -1,3 +1,4 @@
+import { ProjectSpinner } from "../ui/ProjectSpinner";
 import { SelectBox } from "../ui/SelectBox";
 import {useTranslation} from "react-i18next";
 import { useWorkflow } from "../../context/useWorkflow";
@@ -39,7 +40,7 @@ export function Sidebar() {
     window.innerWidth < 768 || localStorage.getItem("kanbrix-nav-compact") === "true");
   const { user, logout } = useAuth();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const { currentProject, projects, setCurrentProject } = useWorkspace();
+  const { currentProject, projects, setCurrentProject, currentWorkspace, projectStatus, refreshProjects } = useWorkspace();
   const workflow=useWorkflow();
   const { theme, setTheme } = useTheme();
   function toggle() {
@@ -48,39 +49,46 @@ export function Sidebar() {
   }
 
   return (
-    <div className={cn("relative shrink-0", collapsed ? "w-14" : "w-14 md:w-64")}>
+    <div className={cn("motion-rail relative shrink-0", collapsed ? "w-14" : "w-14 md:w-56 lg:w-64")}>
       {!collapsed && <button aria-label="Close navigation" onClick={toggle}
         className="fixed inset-x-0 bottom-0 top-14 z-20 bg-black/35 md:hidden" />}
       <aside aria-label="Workspace sidebar"
         onKeyDown={event => { if (event.key === "Escape" && !collapsed && window.innerWidth < 768) setCollapsed(true); }}
-        className={cn("absolute inset-y-0 left-0 z-30 flex flex-col border-r border-border bg-card",
-          collapsed ? "w-14" : "w-64 max-w-[90vw] shadow-xl md:shadow-none")}>
+        className={cn("motion-rail absolute inset-y-0 left-0 z-30 flex flex-col border-r border-border/75 bg-[hsl(var(--nav-surface))]",
+          collapsed ? "w-14" : "w-64 md:w-56 lg:w-64 max-w-[90vw] shadow-xl md:shadow-none")}>
         <div className={cn("flex items-center gap-2 border-b border-border p-2", collapsed && "justify-center")}>
           {!collapsed && <div className="min-w-0 flex-1"><WorkspaceSwitcher /></div>}
           <button onClick={toggle} title={collapsed ? "Expand navigation" : "Collapse navigation"}
-            aria-expanded={!collapsed} className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary">
+            aria-expanded={!collapsed} className="grid h-11 w-10 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary">
             {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
           </button>
         </div>
-        <nav aria-label="Main navigation" className="min-h-0 flex-1 overflow-y-auto px-2 py-4">
-          {!collapsed && projects.length > 0 && <label className="mb-5 flex items-center gap-2 rounded-lg border border-border p-2">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary"><Layers3 size={18}/></span>
-            <span className="min-w-0 flex-1"><span className="block px-1 text-xs text-muted-foreground">{t("Active project")}</span>
-              <SelectBox fullWidth value={currentProject?.id ?? ""} unavailableLabel={currentProject?.name} aria-label={t("Active project")}
-                onChange={event => setCurrentProject(projects.find(project => project.id === event.target.value) ?? null)}>
-                {!currentProject && <option value="">Choose project</option>}
-                {projects.map(project => <option key={project.id} value={project.id}>{project.name} ({project.project_key})</option>)}
-              </SelectBox>
-            </span>
-          </label>}
+        {!collapsed && currentWorkspace && (
+          <div className="shrink-0 border-b border-border px-3 py-3">
+            <label htmlFor="sidebar-project" className="mb-1.5 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              <Layers3 size={14} aria-hidden="true"/>
+              {t("Active project")}
+            </label>
+            {projectStatus === "error" ? <p role="alert" className="text-sm">Could not load projects. <button className="underline" onClick={() => void refreshProjects()}>Retry</button></p>
+              : projectStatus === "loading" ? <ProjectSpinner size="sm" message="Loading projects."/>
+              : projects.length === 0 ? <NavLink to="/projects" onClick={() => { if (window.innerWidth < 768) setCollapsed(true); }} className="text-sm underline">No projects yet. View projects</NavLink>
+              : <SelectBox id="sidebar-project" fullWidth value={currentProject?.id ?? ""}
+              unavailableLabel={currentProject?.name}
+              onChange={event => setCurrentProject(projects.find(project => project.id === event.target.value) ?? null)}>
+              {!currentProject && <option value="">{t("Choose project")}</option>}
+              {projects.map(project => <option key={project.id} value={project.id}>{project.name} ({project.project_key})</option>)}
+            </SelectBox>}
+          </div>
+        )}
+        <nav aria-label="Main navigation" className="workspace-nav min-h-0 flex-1 overflow-y-auto px-2 py-4">
           {groups.map((group,index) => <section key={t(group.label)} aria-label={t(group.label)}
-            className={cn("space-y-1", index > 0 && "mt-4 border-t border-border pt-4")}>
-            {!collapsed && <h2 className="mb-2 px-3 text-xs font-semibold text-muted-foreground">{t(group.label)}</h2>}
-            {group.items.filter(item=>item.href!=="/backlog" || workflow.data?.sprints!==false).map(({ label, href, icon: Icon }) => <NavLink key={href} to={href} aria-label={label} title={collapsed ? label : undefined}
+            className={cn("space-y-1", index > 0 && "mt-5 border-t border-border pt-5")}>
+            {!collapsed && <h2 className="mb-2 px-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">{t(group.label)}</h2>}
+            {group.items.filter(item=>item.href!=="/backlog" || workflow.data?.sprints!==false).map(({ label, href, icon: Icon }) => <NavLink key={href} to={href} aria-label={t(label)} title={collapsed ? t(label) : undefined}
               onClick={() => { if (window.innerWidth < 768) setCollapsed(true); }}
-              className={({isActive}) => cn("relative flex min-h-10 items-center gap-3 rounded-md text-sm transition-colors",
+              className={({isActive}) => cn("relative flex min-h-10 items-center gap-3 rounded-xl text-sm transition-all duration-150",
                 collapsed ? "justify-center" : "px-3",
-                isActive ? "bg-primary/10 font-semibold text-primary before:absolute before:left-0 before:h-5 before:w-1 before:rounded-r before:bg-primary" : "text-muted-foreground hover:bg-secondary hover:text-foreground")}>
+                isActive ? "bg-primary/10 font-semibold text-primary shadow-sm" : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground")}>
               <Icon size={18}/>{!collapsed && t(label)}
             </NavLink>)}
           </section>)}

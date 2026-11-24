@@ -7,6 +7,16 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['var(--font-ui)'],
+        serif: ['var(--font-display)'],
+        mono: ['var(--font-code)'],
+      },
+      fontSize: {
+        xs: ['var(--type-caption)', { lineHeight: '1.4' }],
+        sm: ['var(--type-body)', { lineHeight: '1.5' }],
+        base: ['1rem', { lineHeight: '1.5' }],
+      },
       colors: {
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',

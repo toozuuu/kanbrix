@@ -3,6 +3,7 @@ pub mod dto;
 pub mod handlers;
 pub mod integrations;
 pub mod search;
+pub mod sync;
 
 use crate::common::state::AppState;
 use axum::{
@@ -18,7 +19,9 @@ pub fn routes() -> Router<AppState> {
         )
         .route(
             "/:workspace_id",
-            get(handlers::get_workspace).patch(handlers::update_workspace),
+            get(handlers::get_workspace)
+                .patch(handlers::update_workspace)
+                .delete(handlers::delete_workspace),
         )
         .route(
             "/:workspace_id/configuration",
@@ -47,6 +50,22 @@ pub fn routes() -> Router<AppState> {
         .route(
             "/:workspace_id/integrations/events/:id/retry",
             post(integrations::retry),
+        )
+        .route(
+            "/:workspace_id/integrations/git-webhook",
+            post(sync::git_webhook),
+        )
+        .route(
+            "/:workspace_id/sync/preview",
+            post(sync::preview),
+        )
+        .route(
+            "/:workspace_id/sync/import",
+            post(sync::import_project),
+        )
+        .route(
+            "/:workspace_id/sync/seed-demo",
+            post(sync::seed_demo),
         )
         .route(
             "/:workspace_id/configuration/preview",

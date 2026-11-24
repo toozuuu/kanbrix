@@ -3,7 +3,7 @@ import { DateField } from "./ui/DateField";
 import type { CustomField, Values } from "../types/configuration";
 
 export const control =
-  "w-full rounded-md border border-input bg-card px-3 py-2 text-sm focus:ring-2 focus:ring-ring";
+  "w-full rounded-md border border-input bg-card px-3 py-2 text-sm ";
 export function CustomFields({
   fields,
   kind,

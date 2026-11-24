@@ -57,6 +57,11 @@ Restart the API after changing the environment. Workspace admins can then select
 
 For local installation, VPS setup, HTTPS, backups, restore, upgrades, and troubleshooting, see the [self-hosting guide](docs/DEPLOYMENT.md).
 
+## Syncing from Jira, GitHub, Linear & Git Webhooks
+
+- **External Sync & Import**: Under **Settings → Integrations**, workspace admins can fetch and preview up to 500 tickets from **Jira** (Cloud REST v3 or Server/DC v2), **GitHub Issues**, **Linear**, or **CSV/JSON** exports, map external statuses to Kanbrix workflow columns, and import or re-sync without duplicates (deduplicated by `external_id`). You can also export any project's issues to CSV or JSON, or click **Load sample project** on **Projects** to seed a demo project in seconds.
+- **Git PR Auto-Linking**: Point a GitHub or GitLab webhook at `POST /api/v1/workspaces/{workspace_id}/integrations/git-webhook` with `Authorization: Bearer <integration_feed_token>`. Issue keys like `CORE-12` in PR titles or commit messages automatically post a link comment and transition the issue (`opened` → `InReview`, `merged` → `Done`).
+
 ## Production deployment
 
 Set `SITE_URL` to the public HTTPS origin and `POSTGRES_PASSWORD` to a randomly generated URL-safe secret in the deployment environment. Put the web service behind a TLS reverse proxy that forwards to `127.0.0.1:5173`, then start the production stack.

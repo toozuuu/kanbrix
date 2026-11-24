@@ -320,13 +320,10 @@ pub async fn history(
     State(s): State<AppState>,
     Path(ws): Path<Uuid>,
 ) -> Result<Json<Vec<Value>>, AppError> {
-    if !verify_workspace_membership(&s.pool, ws, user.id)
-        .await?
-        .can_manage_workspace()
-    {
+    let role = verify_workspace_membership(&s.pool, ws, user.id).await?;
+    if !role.can_manage_workspace() {
         return Err(AppError::Forbidden("Administrator access required".into()));
     }
-    let role = verify_workspace_membership(&s.pool, ws, user.id).await?;
     permit(&s.pool, ws, role.to_str(), "manage_settings").await?;
     let rows=sqlx::query_scalar("SELECT jsonb_build_object('revision',r.revision,'configuration',configuration,'author',u.name,'created_at',r.created_at) FROM configuration_revisions r LEFT JOIN users u ON u.id=r.author_id WHERE workspace_id=$1 ORDER BY revision DESC LIMIT 50")
         .bind(ws).fetch_all(&s.pool).await?;

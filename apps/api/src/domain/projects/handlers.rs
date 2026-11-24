@@ -274,8 +274,10 @@ pub async fn update_project(
     .map_err(AppError::DatabaseError)?
     .ok_or_else(|| AppError::NotFound("Project not found".into()))?;
 
-    if existing.role == "Viewer" {
-        return Err(AppError::Forbidden("Viewers cannot modify projects".into()));
+    if existing.role != "Owner" && existing.role != "Admin" {
+        return Err(AppError::Forbidden(
+            "Only workspace owners and admins can modify projects".into(),
+        ));
     }
 
     let updated = sqlx::query!(
@@ -296,6 +298,8 @@ pub async fn update_project(
     .await
     .map_err(AppError::DatabaseError)?;
 
+    state.cache.del(&format!("project:{project_id}")).await;
+
     Ok(Json(ProjectResponse {
         id: updated.id,
         workspace_id: updated.workspace_id,
@@ -308,4 +312,42 @@ pub async fn update_project(
         updated_at: updated.updated_at,
         statuses: None,
     }))
+}
+
+pub async fn delete_project(
+    auth_user: AuthenticatedUser,
+    Path(project_id): Path<Uuid>,
+    State(state): State<AppState>,
+) -> Result<axum::http::StatusCode, AppError> {
+    let existing = sqlx::query!(
+        r#"
+        SELECT p.workspace_id, wm.role
+        FROM projects p
+        JOIN workspace_members wm ON p.workspace_id = wm.workspace_id
+        WHERE p.id = $1 AND wm.user_id = $2
+        "#,
+        project_id,
+        auth_user.id
+    )
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(AppError::DatabaseError)?
+    .ok_or_else(|| AppError::NotFound("Project not found".into()))?;
+
+    if existing.role != "Owner" && existing.role != "Admin" {
+        return Err(AppError::Forbidden(
+            "Only workspace owners and admins can delete projects".into(),
+        ));
+    }
+
+    sqlx::query("DELETE FROM projects WHERE id = $1 AND workspace_id = $2")
+        .bind(project_id)
+        .bind(existing.workspace_id)
+        .execute(&state.pool)
+        .await
+        .map_err(AppError::DatabaseError)?;
+
+    state.cache.del(&format!("project:{project_id}")).await;
+
+    Ok(axum::http::StatusCode::NO_CONTENT)
 }

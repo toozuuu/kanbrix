@@ -208,3 +208,7 @@
   cursor: not-allowed;
   background: transparent !important;
 }
+
+.dark .kanbrix-date-field .flatpickr-day:is(.prevMonthDay, .nextMonthDay):not(.flatpickr-disabled, .selected) {
+  color: hsl(var(--muted-foreground)) !important;
+}

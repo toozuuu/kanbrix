@@ -1,3 +1,5 @@
+import { ExternalSyncPanel } from "../components/ExternalSyncPanel";
+import { ProjectSpinner } from "../components/ui/ProjectSpinner";
 import { ConfirmAction } from "../components/ui/ActionDialogs";
 import { SelectBox } from "../components/ui/SelectBox";
 import { useState } from "react";
@@ -38,14 +40,19 @@ export function IntegrationSettings() {
     enabled: admin,
     refetchInterval: 30000,
   });
-  if (!admin || !q.data) return null;
+  if (!admin) return null;
+  if (q.isError && !q.data) return <p role="alert">Could not load integrations. <button className="underline" onClick={() => void q.refetch()}>Retry</button></p>;
+  if (!q.data) return <ProjectSpinner size="sm" message="Loading integrations."/>;
   return (
-    <Editor
-      key={ws}
-      integration={q.data}
-      base={`/workspaces/${ws}/integrations`}
-      refresh={() => q.refetch()}
-    />
+    <div className="space-y-6">
+      <ExternalSyncPanel workspaceId={ws!} />
+      <Editor
+        key={ws}
+        integration={q.data}
+        base={`/workspaces/${ws}/integrations`}
+        refresh={() => q.refetch()}
+      />
+    </div>
   );
 }
 function Editor({
@@ -84,7 +91,7 @@ function Editor({
     });
   }
   return (
-    <section className="rounded-xl border border-border bg-card p-5 space-y-3">
+    <section className="rounded-2xl border border-border/75 bg-card p-5 sm:p-6 space-y-3 shadow-[var(--shadow-sm)]">
       {tokenAction !== null && <ConfirmAction title={tokenAction ? "Rotate feed token?" : "Revoke feed token?"} description="Clients using the current token will lose access." action={tokenAction ? "Rotate token" : "Revoke token"} onCancel={() => setTokenAction(null)} onConfirm={() => changeToken(tokenAction)} />}
       <h2 className="font-semibold">Integrations and automation</h2>
       <fieldset className="space-y-3" disabled={busy}>

@@ -1,8 +1,9 @@
+import { ProjectSpinner } from "../components/ui/ProjectSpinner";
 import { SelectBox } from "../components/ui/SelectBox";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useWorkspace } from "../context/WorkspaceContext";
 import { api } from "../lib/api";
-import { WorkspaceMember } from "../types";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { Input } from "../components/ui/Input";
@@ -13,26 +14,20 @@ import { UserPlus, Shield } from "lucide-react";
 
 export function MembersPage() {
   const { currentWorkspace } = useWorkspace();
-  const [members, setMembers] = useState<WorkspaceMember[]>([]);
+  const client = useQueryClient();
+  const workspaceId = currentWorkspace?.id;
+  const memberKey = ["workspace-members", workspaceId];
+  const memberQuery = useQuery({
+    queryKey: memberKey,
+    enabled: Boolean(workspaceId),
+    queryFn: () => api.workspaces.members(workspaceId!),
+  });
+  const members = memberQuery.data ?? [];
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("Member");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-
-  const loadMembers = async () => {
-    if (!currentWorkspace) return;
-    try {
-      const list = await api.workspaces.members(currentWorkspace.id);
-      setMembers(list);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  useEffect(() => {
-    loadMembers();
-  }, [currentWorkspace?.id]);
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +39,7 @@ export function MembersPage() {
       toast("Invitation sent successfully!", "success");
       setEmail("");
       setIsModalOpen(false);
-      loadMembers();
+      void client.invalidateQueries({queryKey: memberKey});
     } catch (err: any) {
       toast(err.message || "Failed to invite member", "error");
     } finally {
@@ -57,9 +52,9 @@ export function MembersPage() {
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-border/50">
+      <div className="page-header">
         <div>
-          <h1 className="text-base font-bold text-foreground tracking-tight">Team Members</h1>
+          <h1 className="page-heading">Team Members</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             Manage who has access to the <span className="font-semibold text-foreground">{currentWorkspace?.name}</span> workspace.
           </p>
@@ -73,10 +68,12 @@ export function MembersPage() {
         )}
       </div>
 
+      {workspaceId && memberQuery.isPending && <ProjectSpinner size="sm" message="Loading members."/>}
+      {memberQuery.isError && <p role="alert">Could not load members. <button className="underline" onClick={() => void memberQuery.refetch()}>Retry</button></p>}
       {/* Members Table */}
-      <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
+      <div role="region" aria-label="Workspace members" tabIndex={0} className="max-w-full overflow-x-auto rounded-2xl border border-border bg-card shadow-sm">
         <table className="w-full text-left text-xs">
-          <thead className="bg-muted/50 border-b border-border text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
+          <thead className="bg-muted/50 border-b border-border text-xs uppercase tracking-wider font-semibold text-muted-foreground">
             <tr>
               <th className="py-3 px-4">User</th>
               <th className="py-3 px-4">Email</th>
@@ -93,7 +90,7 @@ export function MembersPage() {
                 </td>
                 <td className="py-3 px-4 text-muted-foreground">{m.email}</td>
                 <td className="py-3 px-4">
-                  <span className="inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded-full border border-border bg-secondary text-[10px]">
+                  <span className="inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded-full border border-border bg-secondary text-xs">
                     <Shield className="h-3 w-3 text-primary" />
                     {m.role}
                   </span>

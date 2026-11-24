@@ -181,7 +181,7 @@ export function CommandPalette({ isOpen, onClose, onToggle, onSelectIssue }: Com
             placeholder={t("Type a command or search issues...")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full h-12 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+            className="w-full h-12 bg-transparent text-sm text-foreground placeholder:text-muted-foreground "
           />
         </div>
 
@@ -190,7 +190,7 @@ export function CommandPalette({ isOpen, onClose, onToggle, onSelectIssue }: Com
           {/* Issue Results */}
           {issues.length > 0 && (
             <div className="mb-2">
-              <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Issues ({issues.length})
               </div>
               {issues.map((issue, idx) => {
@@ -233,7 +233,7 @@ export function CommandPalette({ isOpen, onClose, onToggle, onSelectIssue }: Com
           {/* Quick Actions & Navigation */}
           {quickLinks.length>0 && (
             <div>
-              <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 {t("Quick Navigation")}
               </div>
               {quickLinks.map((link) => (

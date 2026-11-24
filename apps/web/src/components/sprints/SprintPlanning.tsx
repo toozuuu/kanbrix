@@ -71,9 +71,9 @@ export function SprintPlanning({
   return (
     <div className="space-y-6">
       {/* Top Action Bar */}
-      <div className="flex items-center justify-between pb-2 border-b border-border/50">
+      <div className="page-header">
         <div>
-          <h2 className="text-sm font-semibold text-foreground">Sprint Planning & Backlog</h2>
+          <h1 className="page-heading">Sprint Planning &amp; Backlog</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             Organize upcoming work into iteration cycles and manage your project backlog.
           </p>
@@ -92,12 +92,12 @@ export function SprintPlanning({
 
       {/* Active Sprint Section */}
       {activeSprint && (
-        <div className="rounded-xl border border-l-4 border-primary/30 border-l-primary bg-card p-5 space-y-3 shadow-sm">
+        <div className="rounded-2xl border border-l-4 border-primary/30 border-l-primary bg-card p-5 space-y-3 shadow-[var(--shadow-sm)]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
               <h3 className="text-sm font-bold text-foreground">{activeSprint.name}</h3>
-              <span className="text-[10px] font-semibold bg-primary/15 text-primary px-2 py-0.5 rounded-full uppercase tracking-wider">
+              <span className="text-xs font-semibold bg-primary/15 text-primary px-2 py-0.5 rounded-full uppercase tracking-wider">
                 Active Sprint
               </span>
             </div>
@@ -123,7 +123,7 @@ export function SprintPlanning({
                 <div
                   key={issue.id}
                   onClick={() => onIssueClick(issue)}
-                  className="flex items-center justify-between p-3 rounded-lg border border-border/60 bg-secondary/30 hover:border-primary/40 transition-colors cursor-pointer text-xs"
+                  className="motion-issue-row flex items-center justify-between p-3 rounded-lg border border-border/60 bg-secondary/30 hover:border-primary/40 transition-colors cursor-pointer text-xs"
                 >
                   <div className="flex flex-col gap-1 truncate">
                     <div className="flex items-center gap-1.5">
@@ -139,7 +139,7 @@ export function SprintPlanning({
                     )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-muted text-muted-foreground">
+                    <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-muted text-muted-foreground">
                       {issue.status_name}
                     </span>
                     {issue.assignee_name && <Avatar name={issue.assignee_name} size="sm" />}
@@ -155,12 +155,12 @@ export function SprintPlanning({
         const sprintIssues = bySprint.get(sprint.id) ?? [];
 
         return (
-          <div key={sprint.id} className="rounded-xl border border-border bg-card p-4 space-y-3 shadow-sm">
+          <div key={sprint.id} className="rounded-2xl border border-border/75 bg-card p-5 space-y-3 shadow-[var(--shadow-sm)]">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <Layers className="h-4 w-4 text-muted-foreground" />
                 <h3 className="text-sm font-semibold text-foreground">{sprint.name}</h3>
-                <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full font-semibold text-muted-foreground">
+                <span className="text-xs bg-muted px-2 py-0.5 rounded-full font-semibold text-muted-foreground">
                   {sprintIssues.length} issues
                 </span>
               </div>
@@ -184,7 +184,7 @@ export function SprintPlanning({
                 <div
                   key={issue.id}
                   onClick={() => onIssueClick(issue)}
-                  className="flex items-center justify-between p-3 rounded-lg border border-border/60 bg-secondary/30 hover:border-primary/40 transition-colors cursor-pointer text-xs"
+                  className="motion-issue-row flex items-center justify-between p-3 rounded-lg border border-border/60 bg-secondary/30 hover:border-primary/40 transition-colors cursor-pointer text-xs"
                 >
                   <div className="flex flex-col gap-1 truncate">
                     <div className="flex items-center gap-2.5">
@@ -205,7 +205,7 @@ export function SprintPlanning({
                         e.stopPropagation();
                         handleAssignToSprint(issue.id, null);
                       }}
-                      className="text-[10px] text-muted-foreground hover:text-destructive px-1.5 py-0.5 rounded border border-border hover:bg-accent transition-colors"
+                      className="text-xs text-muted-foreground hover:text-destructive px-1.5 py-0.5 rounded border border-border hover:bg-accent transition-colors"
                     >
                       Move to Backlog
                     </button>
@@ -225,11 +225,11 @@ export function SprintPlanning({
       })}
 
       {/* Product Backlog Section */}
-      <div className="rounded-xl border border-border bg-card p-4 space-y-3 shadow-sm">
+      <div className="rounded-2xl border border-border/75 bg-card p-5 space-y-3 shadow-[var(--shadow-sm)]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold text-foreground">Backlog</h3>
-            <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full font-semibold text-muted-foreground">
+            <span className="text-xs bg-muted px-2 py-0.5 rounded-full font-semibold text-muted-foreground">
               {backlogIssues.length} issues
             </span>
           </div>
@@ -244,11 +244,11 @@ export function SprintPlanning({
               <div
                 key={issue.id}
                 onClick={() => onIssueClick(issue)}
-                className="flex items-center justify-between p-3 rounded-lg border border-border/60 bg-secondary/30 hover:border-primary/40 transition-colors cursor-pointer text-xs group"
+                className="motion-issue-row flex items-center justify-between p-3 rounded-lg border border-border/60 bg-secondary/30 hover:border-primary/40 transition-colors cursor-pointer text-xs group"
               >
                 <div className="flex flex-col gap-1 truncate">
                   <div className="flex items-center gap-2.5">
-                    <span className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold ${typeBadge.color}`}>
+                    <span className={`px-1.5 py-0.5 rounded border text-xs font-semibold ${typeBadge.color}`}>
                       {typeBadge.label}
                     </span>
                     <span className="font-mono font-semibold text-primary">{issue.identifier}</span>
@@ -264,7 +264,7 @@ export function SprintPlanning({
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className={`px-1.5 py-0.5 rounded border text-[10px] font-medium uppercase ${priorityStyle}`}>
+                  <span className={`px-1.5 py-0.5 rounded border text-xs font-medium uppercase ${priorityStyle}`}>
                     {issue.priority}
                   </span>
 

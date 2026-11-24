@@ -42,7 +42,7 @@ export function IssueCard({ issue, onClick, isOverlay = false }: IssueCardProps)
       {...listeners}
       onClick={() => onClick(issue)}
       className={cn(
-        "group relative flex flex-col gap-2 rounded-lg border border-border/70 bg-card p-3 shadow-sm transition-colors hover:border-primary/50 cursor-grab active:cursor-grabbing select-none",
+        "group relative flex flex-col gap-2.5 rounded-xl border border-border/75 bg-card p-3.5 shadow-[var(--shadow-sm)] transition-all duration-150 hover:border-primary/45 hover:shadow-[var(--shadow-md)] cursor-grab active:cursor-grabbing select-none",
         isDragging && "opacity-30 border-dashed border-primary",
         isOverlay && "rotate-2 scale-105 shadow-2xl border-primary ring-2 ring-primary/20 z-50 cursor-grabbing bg-card"
       )}
@@ -54,10 +54,10 @@ export function IssueCard({ issue, onClick, isOverlay = false }: IssueCardProps)
       {!!issue.labels?.length && (
         <div className="flex flex-wrap items-center gap-1">
           {issue.labels.slice(0, 3).map(label => (
-            <LabelBadge key={label.id} label={label} className="max-w-full truncate text-[10px]" />
+            <LabelBadge key={label.id} label={label} className="max-w-full truncate text-xs" />
           ))}
           {issue.labels.length > 3 && (
-            <span className="text-[10px] text-muted-foreground">+{issue.labels.length - 3}</span>
+            <span className="text-xs text-muted-foreground">+{issue.labels.length - 3}</span>
           )}
         </div>
       )}
@@ -68,13 +68,13 @@ export function IssueCard({ issue, onClick, isOverlay = false }: IssueCardProps)
         </span>
       )}
 
-      <div className="flex flex-wrap items-center gap-1.5 border-t border-border/40 pt-2 text-[10px]">
+      <div className="flex flex-wrap items-center gap-1.5 border-t border-border/40 pt-2 text-xs">
         <span className={cn("rounded border px-1.5 font-medium", typeBadge.color)}>{typeBadge.label}</span>
         <span className="font-mono text-muted-foreground group-hover:text-primary">{issue.identifier}</span>
         <div className="ml-auto flex items-center gap-1.5">
           <span className={cn("rounded border px-1.5 font-medium", priorityStyle)}>{issue.priority}</span>
           {issue.assignee_name ? (
-            <Avatar name={issue.assignee_name} size="sm" className="h-5 w-5 text-[9px]" />
+            <Avatar name={issue.assignee_name} size="sm" className="h-5 w-5 text-xs" />
           ) : (
             <span className="grid h-5 w-5 place-items-center rounded-full bg-secondary text-muted-foreground" title="Unassigned">
               <UserRound size={12} aria-label="Unassigned" />

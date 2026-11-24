@@ -1,3 +1,5 @@
+import { useQuery } from "@tanstack/react-query";
+import { api } from "../../lib/api";
 import { SelectBox } from "../ui/SelectBox";
 import { useIssueForm } from "../../context/useIssueForm";
 import { useConfiguration } from "../../context/useConfiguration";
@@ -36,11 +38,17 @@ export function FilterBar({
 }: FilterBarProps) {
   const cfg = useIssueForm();
   const configuration = useConfiguration();
-  const { labels: workspaceLabels } = useWorkspace();
+  const { currentWorkspace, currentProject } = useWorkspace();
+  const projectLabelsQuery = useQuery({
+    queryKey: ["project-labels", currentWorkspace?.id, currentProject?.id],
+    queryFn: () => api.labels.list(currentWorkspace!.id, currentProject!.id),
+    enabled: Boolean(currentWorkspace?.id && currentProject?.id),
+  });
+  const workspaceLabels = projectLabelsQuery.data ?? [];
   const hasFilters = Boolean(search || priority || type || assignment || overdue || recentlyUpdated || (selectedLabels.length > 0));
 
   return (
-    <div className="grid grid-cols-2 items-center gap-2 rounded-lg border border-border bg-card p-2 sm:flex sm:flex-wrap">
+    <div className="grid grid-cols-2 items-center gap-2 rounded-2xl border border-border/75 bg-card p-2.5 shadow-[var(--shadow-sm)] sm:flex sm:flex-wrap">
       {/* Search Input */}
       <div className="relative col-span-2 min-w-0 sm:min-w-48 sm:flex-1 sm:max-w-sm">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -49,7 +57,7 @@ export function FilterBar({
           aria-label="Filter issues by text" placeholder="Filter issues…"
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full h-10 pl-8 pr-8 rounded-md border border-input bg-background text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
+          className="w-full h-10 pl-8 pr-8 rounded-md border border-input bg-background text-xs text-foreground placeholder:text-muted-foreground  shadow-sm"
         />
         {search && (
           <button
@@ -92,17 +100,17 @@ export function FilterBar({
       </SelectBox>
       <button type="button" aria-pressed={recentlyUpdated} onClick={onRecentlyUpdatedChange}
         title="Updated in the last 24 hours"
-        className="h-10 rounded-md border border-input px-3 text-xs aria-pressed:bg-primary aria-pressed:text-primary-foreground">
+        className="h-10 rounded-[var(--input-radius)] border border-input/80 bg-card px-3 text-xs font-medium shadow-sm transition-colors hover:border-primary/60 aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground">
         Recently updated
       </button>
       <button type="button" aria-pressed={overdue} onClick={onOverdueChange}
-        className="h-10 rounded-md border border-input px-3 text-xs aria-pressed:bg-primary aria-pressed:text-primary-foreground">
+        className="h-10 rounded-[var(--input-radius)] border border-input/80 bg-card px-3 text-xs font-medium shadow-sm transition-colors hover:border-primary/60 aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground">
         Overdue
       </button>
 
       {/* Label Filter - Multi-select as checkboxes */}
       {workspaceLabels && workspaceLabels.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 items-center">
+        <div className="col-span-2 flex flex-wrap gap-1.5 items-center sm:col-span-1">
           <Tag className="h-3.5 w-3.5 text-muted-foreground" />
           {workspaceLabels.map(label => {
             const isSelected = selectedLabels.includes(label.id);
@@ -138,8 +146,9 @@ export function FilterBar({
       )}
       {hasFilters && (
         <button
+          type="button"
           onClick={onClear}
-          className="flex items-center gap-1 h-10 px-2 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          className="col-span-2 flex items-center justify-center sm:justify-start gap-1 h-10 px-2.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
         >
           <X className="h-3.5 w-3.5" />
           <span>Reset</span>

@@ -15,6 +15,7 @@ export function WorkspaceSwitcher() {
   const disclosure = useDropdownDisclosure(isOpen, setIsOpen);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [name, setName] = useState("");
+  const [slugEdited, setSlugEdited] = useState(false);
   const [slug, setSlug] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -31,6 +32,7 @@ export function WorkspaceSwitcher() {
       setIsModalOpen(false);
       setName("");
       setSlug("");
+      setSlugEdited(false);
       toast("Workspace created successfully!", "success");
     } catch (err: any) {
       toast(err.message || "Failed to create workspace", "error");
@@ -41,26 +43,21 @@ export function WorkspaceSwitcher() {
 
   return (
     <>
-      <div className="relative" {...disclosure.container}>
+      <div className="relative min-w-0" {...disclosure.container}>
         <button
           {...disclosure.trigger}
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center justify-between w-full p-2.5 rounded-xl bg-secondary/50 hover:bg-accent text-left transition-colors border border-input hover:border-primary"
+          aria-label={currentWorkspace ? `Switch workspace, ${currentWorkspace.name}` : "Select workspace"}
+          className="flex min-h-14 w-full items-center gap-2 rounded-md px-1 text-left transition-colors hover:bg-accent"
         >
-          <div className="flex items-center gap-2.5 truncate">
-            <div className="h-7 w-7 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
-              <Briefcase className="h-4 w-4" />
-            </div>
-            <div className="truncate">
-              <div className="text-xs font-semibold truncate text-foreground">
-                {currentWorkspace ? currentWorkspace.name : "Select Workspace"}
-              </div>
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono">
-                {currentWorkspace?.role || "Free"}
-              </div>
-            </div>
-          </div>
-          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 ml-1" />
+          <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-md bg-foreground font-serif text-xl text-background">
+            {currentWorkspace?.name.trim().charAt(0).toLocaleUpperCase() || <Briefcase size={16}/>}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs text-muted-foreground">Workspace</span>
+            <span className="block truncate text-sm font-semibold">{currentWorkspace?.name || "Select workspace"}</span>
+          </span>
+          <ChevronDown aria-hidden="true" size={15} className={`shrink-0 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}/>
         </button>
 
         {isOpen && (
@@ -69,8 +66,8 @@ export function WorkspaceSwitcher() {
               className="fixed inset-0 z-40"
               onClick={() => setIsOpen(false)}
             />
-            <div {...disclosure.panel} className="dropdown-surface max-h-[55vh] overflow-y-auto absolute top-full left-0 right-0 mt-1.5 z-50 ">
-              <div className="px-2 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            <div {...disclosure.panel} className="dropdown-surface max-h-[55vh] overflow-y-auto absolute top-full left-0 w-56 max-w-[80vw] mt-1.5 z-50 ">
+              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Workspaces
               </div>
               {workspaces.map((ws) => (
@@ -82,9 +79,12 @@ export function WorkspaceSwitcher() {
                     disclosure.trigger.ref.current?.focus();
                     setIsOpen(false);
                   }}
-                  className="flex items-center justify-between w-full min-h-9 px-2 py-1.5 text-sm rounded-md aria-[current=true]:bg-primary/10 hover:bg-accent transition-colors text-left"
+                  className="flex items-center justify-between w-full min-h-11 px-2 py-1.5 text-sm rounded-md aria-[current=true]:bg-primary/10 hover:bg-accent transition-colors text-left"
                 >
-                  <span className="font-medium truncate">{ws.name}</span>
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{ws.name}</span>
+                    {ws.role && <span className="block text-xs capitalize text-muted-foreground">{ws.role}</span>}
+                  </span>
                   {currentWorkspace?.id === ws.id && (
                     <Check className="h-3.5 w-3.5 text-primary ml-2 shrink-0" />
                   )}
@@ -97,7 +97,7 @@ export function WorkspaceSwitcher() {
                   setIsOpen(false);
                   setIsModalOpen(true);
                 }}
-                className="flex items-center gap-2 w-full min-h-9 px-2 py-1.5 text-sm rounded-md hover:bg-accent text-primary font-medium transition-colors"
+                className="flex items-center gap-2 w-full min-h-11 px-2 py-1.5 text-sm rounded-md hover:bg-accent text-primary font-medium transition-colors"
               >
                 <Plus className="h-3.5 w-3.5" />
                 Create Workspace
@@ -120,7 +120,7 @@ export function WorkspaceSwitcher() {
             value={name}
             onChange={(e) => {
               setName(e.target.value);
-              if (!slug) {
+              if (!slugEdited) {
                 setSlug(
                   e.target.value
                     .toLowerCase()
@@ -136,7 +136,7 @@ export function WorkspaceSwitcher() {
             label="Workspace URL Slug"
             placeholder="e.g. acme"
             value={slug}
-            onChange={(e) => setSlug(e.target.value.toLowerCase())}
+            onChange={(e) => { setSlugEdited(true); setSlug(e.target.value.toLowerCase()); }}
             helperText="Used for identifiers and workspace routing"
             required
           />

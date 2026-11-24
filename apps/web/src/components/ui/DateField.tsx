@@ -102,7 +102,7 @@ export function DateField({ label, value, onChange, min, max, required, help }: 
           placeholder={displayFormat}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          className="h-10 w-full rounded-md border border-input bg-card ps-9 pe-9 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 transition-all"
+          className="h-10 w-full rounded-md border border-input bg-card ps-9 pe-9 text-sm  transition-all"
         />
         {value && (
           <button

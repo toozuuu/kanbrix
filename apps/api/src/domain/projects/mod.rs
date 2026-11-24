@@ -13,7 +13,9 @@ pub fn routes() -> Router<AppState> {
         )
         .route(
             "/:project_id",
-            get(handlers::get_project).patch(handlers::update_project),
+            get(handlers::get_project)
+                .patch(handlers::update_project)
+                .delete(handlers::delete_project),
         )
 }
 

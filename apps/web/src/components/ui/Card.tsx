@@ -12,21 +12,20 @@ export function Card({ className, children, header, footer }: CardProps) {
   return (
     <div
       className={cn(
-        "rounded-xl border border-border bg-card text-foreground shadow-sm",
-        "hover:shadow-md transition-all duration-200",
+        "rounded-[var(--card-radius)] border border-border/75 bg-card text-foreground shadow-[var(--shadow-sm)]",
         className
       )}
     >
       {header && (
-        <div className="border-b border-border/50 px-6 py-4 first:rounded-t-xl last:rounded-b-none">
+        <div className="border-b border-border/60 bg-gradient-to-r from-primary/[0.03] to-transparent px-6 py-4 first:rounded-t-2xl last:rounded-b-none">
           {header}
         </div>
       )}
-      <div className={cn("px-6 py-4", header && "pb-0", footer && "pt-0")}>
+      <div className={cn("px-6 py-4", header && "pb-4", footer && "pt-4")}>
         {children}
       </div>
       {footer && (
-        <div className="border-t border-border/50 px-6 py-4 first:rounded-b-xl last:rounded-t-none">
+        <div className="border-t border-border/60 bg-secondary/20 px-6 py-3.5 first:rounded-b-2xl last:rounded-t-none">
           {footer}
         </div>
       )}
