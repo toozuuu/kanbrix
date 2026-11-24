@@ -5,7 +5,7 @@ import {useLiveBoard} from "../context/useLiveBoard";
 import { useIssueForm } from "../context/useIssueForm";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCalendar } from "./PersonalSettings";
 import { useAuth } from "../context/AuthContext";
 import { useWorkspace } from "../context/WorkspaceContext";
@@ -15,7 +15,8 @@ import { KanbanBoard } from "../components/kanban/KanbanBoard";
 import { FilterBar } from "../components/issues/FilterBar";
 import { Button } from "../components/ui/Button";
 import { ProjectSpinner } from "../components/ui/ProjectSpinner";
-import { Plus, Kanban as KanbanIcon, ListTree, LayoutDashboard } from "lucide-react";
+import { useToast } from "../components/ui/Toast";
+import { Plus, Kanban as KanbanIcon, ListTree, LayoutDashboard, Bookmark, X } from "lucide-react";
 
 interface KanbanPageProps {
   onIssueClick: (issue: Issue) => void;
@@ -37,6 +38,16 @@ export function KanbanPage({ onIssueClick, onAddIssueToStatus }: KanbanPageProps
   const labelIdsParam = params.get("labels");
   const projectId = currentProject?.id;
   const sprintId = params.get("sprint") ?? "";
+  const [groupBy, setGroupBy] = useState<"none" | "assignee" | "priority">("none");
+  const [filterName, setFilterName] = useState("");
+  const [savingFilter, setSavingFilter] = useState(false);
+  const client = useQueryClient();
+  const { toast } = useToast();
+  const savedFilters = useQuery({
+    queryKey: ["saved-filters", projectId],
+    queryFn: () => api.projects.filters.list(projectId!),
+    enabled: !!projectId,
+  });
   const sprints = useQuery({
     queryKey: ["project-sprints", projectId],
     queryFn: () => api.sprints.list(projectId!),
@@ -126,6 +137,11 @@ export function KanbanPage({ onIssueClick, onAddIssueToStatus }: KanbanPageProps
           <LayoutDashboard size={15} aria-hidden="true" /> Dashboard
         </Link>
         <div className="w-full sm:w-auto sm:ml-auto flex flex-wrap items-center gap-2">
+          <SelectBox aria-label="Group board by swimlane" value={groupBy} onChange={e => setGroupBy(e.target.value as "none" | "assignee" | "priority")}>
+            <option value="none">No swimlanes</option>
+            <option value="assignee">Swimlanes: Assignee</option>
+            <option value="priority">Swimlanes: Priority</option>
+          </SelectBox>
           <SelectBox fullWidth aria-label="Filter board by sprint" value={sprintId} data-filter-active={!!sprintId}
             unavailableLabel={sprints.isPending ? "Loading sprints…" : "Sprint unavailable"}
             onChange={event => updateFilter("sprint", event.target.value)}>
@@ -160,6 +176,80 @@ export function KanbanPage({ onIssueClick, onAddIssueToStatus }: KanbanPageProps
       />
 
       {!!cfg?.fields.length && <div className="flex flex-wrap gap-2 text-sm"><SelectBox aria-label="Filter by custom field" data-filter-active={Boolean(fieldId)} value={fieldId} onChange={e=>{const next=new URLSearchParams(params);next.delete("value");if(e.target.value)next.set("field",e.target.value);else next.delete("field");setParams(next,{replace:true});}}><option value="">All custom fields</option>{cfg.fields.map(f=><option key={f.id} value={f.id}>{f.label}</option>)}</SelectBox>{fieldId && <input aria-label="Custom field value" className="min-w-0 max-w-full rounded border border-input bg-card p-2" placeholder="Exact value" value={fieldValue} onChange={e=>updateFilter("value",e.target.value)}/>}</div>}
+
+      {/* Saved Quick Filters */}
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        {savedFilters.data?.map((f) => (
+          <span
+            key={f.id}
+            className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 shadow-sm"
+          >
+            <button
+              type="button"
+              onClick={() => {
+                const next = new URLSearchParams();
+                Object.entries(f.query_params).forEach(([k, v]) => {
+                  if (v) next.set(k, v);
+                });
+                setParams(next, { replace: true });
+              }}
+              className="inline-flex items-center gap-1 font-medium text-foreground hover:text-primary"
+            >
+              <Bookmark className="h-3 w-3 text-primary" aria-hidden="true" />
+              {f.name}
+            </button>
+            <button
+              type="button"
+              aria-label={`Remove saved filter ${f.name}`}
+              onClick={async () => {
+                await api.projects.filters.delete(projectId!, f.id);
+                await client.invalidateQueries({ queryKey: ["saved-filters", projectId] });
+              }}
+              className="text-muted-foreground hover:text-destructive"
+            >
+              <X className="h-3 w-3" aria-hidden="true" />
+            </button>
+          </span>
+        ))}
+        {Array.from(params.keys()).length > 0 && (
+          <form
+            className="inline-flex items-center gap-1.5"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!filterName.trim() || !projectId) return;
+              setSavingFilter(true);
+              try {
+                const query_params: Record<string, string> = {};
+                params.forEach((v, k) => {
+                  query_params[k] = v;
+                });
+                await api.projects.filters.create(projectId, {
+                  name: filterName.trim(),
+                  query_params,
+                });
+                setFilterName("");
+                await client.invalidateQueries({ queryKey: ["saved-filters", projectId] });
+                toast("Quick filter saved", "success");
+              } catch (err) {
+                toast(err instanceof Error ? err.message : "Could not save filter", "error");
+              } finally {
+                setSavingFilter(false);
+              }
+            }}
+          >
+            <input
+              aria-label="Quick filter name"
+              placeholder="Save filter as…"
+              value={filterName}
+              onChange={(e) => setFilterName(e.target.value)}
+              className="h-8 w-36 rounded-lg border border-input bg-card px-2.5 text-xs"
+            />
+            <Button type="submit" size="xs" variant="secondary" isLoading={savingFilter}>
+              Save
+            </Button>
+          </form>
+        )}
+      </div>
       {/* Kanban Board Canvas */}
       <div className="relative h-[65dvh] min-h-80 overflow-hidden lg:h-auto lg:min-h-0 lg:flex-1">
         {queries.some(q => q.isFetching && !q.isPending) && (
@@ -181,7 +271,7 @@ export function KanbanPage({ onIssueClick, onAddIssueToStatus }: KanbanPageProps
             message="Loading board…"
             subMessage={currentProject?.name ? `Refreshing ${currentProject.name}` : "Fetching board columns and issues"}
           />
-        ) : <KanbanBoard
+        ) : groupBy === "none" ? <KanbanBoard
           key={projectId}
           statuses={workflow.data.statuses ?? []}
           issues={issues}
@@ -190,7 +280,40 @@ export function KanbanPage({ onIssueClick, onAddIssueToStatus }: KanbanPageProps
           onIssueClick={onIssueClick}
           onAddIssueToStatus={(statusId) => onAddIssueToStatus(statusId)}
           onRefresh={refresh}
-        />}
+        /> : (
+          <div className="h-full overflow-y-auto space-y-6 pr-1">
+            {Array.from(
+              issues.reduce((acc, issue) => {
+                const key = groupBy === "assignee"
+                  ? (issue.assignee_name || "Unassigned")
+                  : (issue.priority || "medium");
+                const list = acc.get(key) ?? [];
+                list.push(issue);
+                acc.set(key, list);
+                return acc;
+              }, new Map<string, Issue[]>()),
+            ).map(([lane, laneIssues]) => (
+              <div key={lane} className="space-y-2">
+                <div className="flex items-center gap-2 px-1">
+                  <h2 className="text-sm font-semibold capitalize text-foreground">{lane}</h2>
+                  <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                    {laneIssues.length}
+                  </span>
+                </div>
+                <KanbanBoard
+                  key={`${projectId}-${lane}`}
+                  statuses={workflow.data.statuses ?? []}
+                  issues={laneIssues}
+                  nextPositions={new Map()}
+                  loadMore={() => {}}
+                  onIssueClick={onIssueClick}
+                  onAddIssueToStatus={(statusId) => onAddIssueToStatus(statusId)}
+                  onRefresh={refresh}
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ pub struct Label {
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateLabelRequest {
+    pub project_id: Option<Uuid>,
     pub name: String,
     pub color: Option<String>,
 }

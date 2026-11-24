@@ -30,6 +30,7 @@ export type IssueStatus = {
   name: string;
   category: 'Backlog' | 'Todo' | 'InProgress' | 'InReview' | 'Done';
   position: number;
+  wip_limit?: number | null;
 };
 
 export type Project = {
@@ -77,11 +78,41 @@ export type Issue = {
   reporter_name: string;
   parent_issue_id?: string | null;
   sprint_id?: string | null;
+  story_points?: number | null;
   position: number;
   due_date?: string | null;
   created_at: string;
   updated_at: string;
   labels: Label[];
+};
+
+export type SubtaskSummary = {
+  id: string;
+  identifier: string;
+  title: string;
+  priority: string;
+  status_name: string;
+  status_category: string;
+};
+
+export type LinkedIssueSummary = {
+  id: string;
+  link_type: 'blocks' | 'is_blocked_by' | 'relates_to' | 'duplicates';
+  issue_id: string;
+  identifier: string;
+  title: string;
+  status_name: string;
+};
+
+export type IssueRelations = {
+  subtasks: SubtaskSummary[];
+  links: LinkedIssueSummary[];
+};
+
+export type SavedFilter = {
+  id: string;
+  name: string;
+  query_params: Record<string, string>;
 };
 
 export type Comment = {

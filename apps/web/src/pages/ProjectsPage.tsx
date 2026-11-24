@@ -1,3 +1,4 @@
+import { ProjectTemplateGallery, BUILTIN_TEMPLATES } from "../components/ProjectTemplateGallery";
 import { ProjectSpinner } from "../components/ui/ProjectSpinner";
 import { EmptyProjectIcon } from "../components/ui/ProjectEmptyState";
 import { SelectBox } from "../components/ui/SelectBox";
@@ -310,7 +311,7 @@ export function ProjectsPage() {
             required
           />
 
-          <label className="block text-sm">Project template<SelectBox fullWidth value={template} onChange={e=>setTemplate(e.target.value)}><option value="">Organization default</option>{cfg?.templates.map(t=><option key={t.name}>{t.name}</option>)}</SelectBox></label>
+          <label className="block text-sm">Project template<SelectBox fullWidth value={template} onChange={e=>setTemplate(e.target.value)}><option value="">Organization default</option>{cfg?.templates.map(t=><option key={t.name} value={t.name}>{t.name}</option>)}{BUILTIN_TEMPLATES.filter(b => !cfg?.templates.some(t => t.name === b.name)).map(b => <option key={b.name} value={b.name}>{b.name}</option>)}</SelectBox></label>
           <Textarea
             label="Description (Optional)"
             placeholder="What is this project focused on?"
@@ -374,6 +375,15 @@ export function ProjectsPage() {
         confirmText="Delete Project"
         isLoading={isLoading}
       />
+
+      {currentWorkspace && (
+        <ProjectTemplateGallery
+          onSelectTemplate={(tpl) => {
+            setTemplate(tpl);
+            setIsModalOpen(true);
+          }}
+        />
+      )}
     </div>
   );
 }

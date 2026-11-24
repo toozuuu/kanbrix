@@ -25,7 +25,7 @@ pub async fn read(
     let (ws, role, delegate) = access(&mut conn, id, user.id).await?;
     let admin = matches!(role.as_str(), "Owner" | "Admin");
     let (_, cfg) = crate::domain::workspaces::configuration::current(&mut conn, ws).await?;
-    let row:Value=sqlx::query_scalar("SELECT jsonb_build_object('form',form_overrides,'revision',workflow_revision,'sprints',sprint_enabled,'transitions',transitions,'columns',(SELECT jsonb_agg(jsonb_build_object('id',s.id,'name',s.name,'category',s.category,'issues',(SELECT count(*) FROM issues i WHERE i.status_id=s.id)) ORDER BY position,id) FROM issue_statuses s WHERE s.project_id=p.id),'delegates',(SELECT coalesce(jsonb_agg(user_id),'[]') FROM project_members WHERE project_id=p.id AND role='Admin')) FROM projects p WHERE id=$1").bind(id).fetch_one(&mut *conn).await?;
+    let row:Value=sqlx::query_scalar("SELECT jsonb_build_object('form',form_overrides,'revision',workflow_revision,'sprints',sprint_enabled,'transitions',transitions,'columns',(SELECT jsonb_agg(jsonb_build_object('id',s.id,'name',s.name,'category',s.category,'wip_limit',s.wip_limit,'issues',(SELECT count(*) FROM issues i WHERE i.status_id=s.id)) ORDER BY position,id) FROM issue_statuses s WHERE s.project_id=p.id),'delegates',(SELECT coalesce(jsonb_agg(user_id),'[]') FROM project_members WHERE project_id=p.id AND role='Admin')) FROM projects p WHERE id=$1").bind(id).fetch_one(&mut *conn).await?;
     let mut row = row;
     if row["columns"].is_null() {
         row["columns"] = json!([])
@@ -45,6 +45,8 @@ pub struct Column {
     id: Uuid,
     name: String,
     category: String,
+    #[serde(default)]
+    wip_limit: Option<i32>,
 }
 #[derive(Deserialize)]
 pub struct Draft {
@@ -129,11 +131,12 @@ pub async fn publish(
         .execute(&mut *tx)
         .await?;
     for (i, c) in d.columns.iter().enumerate() {
+        let wip = c.wip_limit.filter(|&w| w > 0);
         if existing.contains(&c.id) {
-            sqlx::query("UPDATE issue_statuses SET name=$1,category=$2,position=$3 WHERE project_id=$4 AND id=$5")
-                .bind(c.name.trim()).bind(&c.category).bind(i as f64*1000.).bind(id).bind(c.id).execute(&mut *tx).await?;
+            sqlx::query("UPDATE issue_statuses SET name=$1,category=$2,position=$3,wip_limit=$4 WHERE project_id=$5 AND id=$6")
+                .bind(c.name.trim()).bind(&c.category).bind(i as f64*1000.).bind(wip).bind(id).bind(c.id).execute(&mut *tx).await?;
         } else {
-            sqlx::query("INSERT INTO issue_statuses(id,project_id,name,category,position) VALUES($1,$2,$3,$4,$5)").bind(c.id).bind(id).bind(c.name.trim()).bind(&c.category).bind(i as f64*1000.).execute(&mut *tx).await?;
+            sqlx::query("INSERT INTO issue_statuses(id,project_id,name,category,position,wip_limit) VALUES($1,$2,$3,$4,$5,$6)").bind(c.id).bind(id).bind(c.name.trim()).bind(&c.category).bind(i as f64*1000.).bind(wip).execute(&mut *tx).await?;
         }
     }
     for old in existing.iter().filter(|k| !ids.contains(*k)) {

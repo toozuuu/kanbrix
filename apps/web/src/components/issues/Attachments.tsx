@@ -1,3 +1,4 @@
+import { Upload, Paperclip } from "lucide-react";
 import {useTranslation} from "react-i18next";
 import {useRef,useState} from "react";
 import {apiHooks} from "../../lib/generated-api";
@@ -46,18 +47,22 @@ export function Attachments({issue}:{issue:string}){
     <section className="space-y-2">
       <h3 className="text-sm font-semibold">{t("Attachments")}</h3>
 
-      <label className="block rounded-lg border border-dashed border-input p-3 text-sm cursor-pointer hover:bg-secondary/20 transition-colors"
+      <label className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-border/80 bg-secondary/20 p-5 text-center text-sm cursor-pointer hover:border-primary/50 hover:bg-primary/[0.04] transition-all"
         onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = busy ? "none" : "copy"; }}
         onDrop={event => {
           event.preventDefault();
           if (!busy) void upload(Array.from(event.dataTransfer.files));
         }}>
-        {busy?"Uploading…":"Drop files here or click to browse (10 MiB each)"}
+        <Upload className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+        <span className="font-medium text-foreground">
+          {busy ? "Uploading…" : "Drop files here or click to browse"}
+        </span>
+        <span className="text-xs text-muted-foreground">10 MiB each</span>
         <input
           disabled={busy}
           type="file"
           multiple
-          className="block mt-2 hidden"
+          className="sr-only"
           onChange={e=>{
             void upload(Array.from(e.target.files??[]));
             e.target.value="";
@@ -67,6 +72,7 @@ export function Attachments({issue}:{issue:string}){
 
       {query.isError && (
         <button
+          type="button"
           onClick={()=>query.refetch()}
           className="text-xs text-primary hover:underline"
         >
@@ -75,16 +81,17 @@ export function Attachments({issue}:{issue:string}){
       )}
 
       {query.data && query.data.length > 0 && (
-        <div className="space-y-1 max-h-40 overflow-y-auto">
+        <div className="space-y-1.5 max-h-44 overflow-y-auto">
           {query.data.map((f: Attachment)=>(
             <a
               key={f.id}
               href={`/api/v1${base}/${f.id}`}
               download={f.filename}
-              className="block text-sm hover:underline text-primary"
+              className="flex items-center gap-2 rounded-xl border border-border/70 bg-card px-3 py-2 text-sm shadow-sm hover:border-primary/40 hover:bg-accent/30 transition-colors text-primary"
             >
-              <span className="font-medium">{f.filename}</span>
-              <span className="text-muted-foreground ml-2">({formatSize(f.size)})</span>
+              <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <span className="min-w-0 flex-1 truncate font-medium">{f.filename}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">({formatSize(f.size)})</span>
             </a>
           ))}
         </div>

@@ -1,3 +1,4 @@
+import { EmailSettingsPanel } from "../components/EmailSettingsPanel";
 import { ExternalSyncPanel } from "../components/ExternalSyncPanel";
 import { ProjectSpinner } from "../components/ui/ProjectSpinner";
 import { ConfirmAction } from "../components/ui/ActionDialogs";
@@ -45,6 +46,7 @@ export function IntegrationSettings() {
   if (!q.data) return <ProjectSpinner size="sm" message="Loading integrations."/>;
   return (
     <div className="space-y-6">
+      <EmailSettingsPanel workspaceId={ws!} />
       <ExternalSyncPanel workspaceId={ws!} />
       <Editor
         key={ws}

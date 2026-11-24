@@ -43,11 +43,14 @@ pub async fn list_labels(
     let labels = if let Some(project_id) = query.project_id {
         sqlx::query_as::<_, Label>(
             r#"
-            SELECT DISTINCT l.id, l.workspace_id, l.name, l.color
+            SELECT l.id, l.workspace_id, l.name, l.color
             FROM labels l
-            JOIN issue_labels il ON il.label_id = l.id
-            JOIN issues i ON i.id = il.issue_id
-            WHERE l.workspace_id = $1 AND i.project_id = $2
+            WHERE l.workspace_id = $1 AND l.id IN (
+                SELECT label_id FROM project_labels WHERE project_id = $2
+                UNION ALL
+                SELECT il.label_id FROM issues i JOIN issue_labels il ON il.issue_id = i.id
+                WHERE i.project_id = $2
+            )
             ORDER BY l.name
             "#,
         )
@@ -104,6 +107,27 @@ pub async fn create_label(
         ));
     }
 
+    let name = payload.name.trim();
+    if name.is_empty() || name.chars().count() > 64 {
+        return Err(AppError::BadRequest("Label names must contain 1 to 64 characters".into()));
+    }
+    if let Some(project_id) = payload.project_id {
+        let mut tx = state.pool.begin().await?;
+        sqlx::query_scalar::<_, Uuid>("SELECT id FROM projects WHERE id = $1 AND workspace_id = $2 FOR KEY SHARE")
+            .bind(project_id).bind(workspace_id).fetch_optional(&mut *tx).await?
+            .ok_or_else(|| AppError::NotFound("Project not found".into()))?;
+        let label = sqlx::query_as::<_, Label>(
+            "INSERT INTO labels (workspace_id, name, color) VALUES ($1,$2,$3)
+             ON CONFLICT (workspace_id, name) DO UPDATE SET name = EXCLUDED.name
+             RETURNING id, workspace_id, name, color"
+        ).bind(workspace_id).bind(name).bind(payload.color.as_deref().unwrap_or("#477563"))
+         .fetch_one(&mut *tx).await?;
+        sqlx::query("INSERT INTO project_labels (project_id, label_id) VALUES ($1,$2) ON CONFLICT DO NOTHING")
+            .bind(project_id).bind(label.id).execute(&mut *tx).await?;
+        tx.commit().await?;
+        return Ok((StatusCode::CREATED, Json(label)));
+    }
+
     let label = sqlx::query_as::<_, Label>(
         r#"
         INSERT INTO labels (workspace_id, name, color)
@@ -112,7 +136,7 @@ pub async fn create_label(
         "#,
     )
     .bind(workspace_id)
-    .bind(&payload.name)
+    .bind(name)
     .bind(payload.color.unwrap_or_else(|| "#6366f1".to_string()))
     .fetch_one(&state.pool)
     .await

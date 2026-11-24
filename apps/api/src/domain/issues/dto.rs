@@ -22,6 +22,7 @@ pub struct CreateIssueRequest {
     pub assignee_id: Option<Uuid>,
     pub parent_issue_id: Option<Uuid>,
     pub sprint_id: Option<Uuid>,
+    pub story_points: Option<i32>,
     pub due_date: Option<DateTime<Utc>>,
     pub labels: Option<Vec<Uuid>>,
 }
@@ -41,6 +42,8 @@ pub struct UpdateIssueRequest {
     pub position: Option<f64>,
     #[serde(default, deserialize_with = "explicit_nullable")]
     pub due_date: Option<Option<DateTime<Utc>>>,
+    #[serde(default, deserialize_with = "explicit_nullable")]
+    pub story_points: Option<Option<i32>>,
     pub labels: Option<Vec<Uuid>>,
 }
 
@@ -136,6 +139,7 @@ pub struct IssueResponse {
     pub reporter_name: String,
     pub parent_issue_id: Option<Uuid>,
     pub sprint_id: Option<Uuid>,
+    pub story_points: Option<i32>,
     pub position: f64,
     pub due_date: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,

@@ -41,9 +41,13 @@ export function KanbanColumn({
     }
   };
 
+  const wipLimit = status.wip_limit ?? null;
+  const overWip = wipLimit !== null && wipLimit > 0 && issues.length > wipLimit;
+
   return (
     <section data-drop-active={isOver || undefined} ref={setNodeRef} aria-label={status.name} className={cn(
       "motion-board-column flex max-h-full w-[min(17rem,78vw)] shrink-0 flex-col rounded-[var(--card-radius)] border border-border/75 bg-secondary/45 shadow-[var(--shadow-sm)] transition-colors",
+      overWip && "border-amber-500/70 bg-amber-500/[0.04]",
       isOver && "border-primary/50 bg-primary/5 ring-2 ring-primary/15",
     )}>
       {/* Column Header */}
@@ -53,8 +57,16 @@ export function KanbanColumn({
           <h3 className="text-sm font-semibold text-foreground">
             {status.name}
           </h3>
-          <span className="flex h-5 items-center justify-center rounded-full bg-muted px-2 text-xs font-semibold text-muted-foreground">
-            {issues.length}{loadMore ? "+" : ""}
+          <span
+            className={cn(
+              "flex h-5 items-center justify-center rounded-full px-2 text-xs font-semibold tabular-nums",
+              overWip
+                ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                : "bg-muted text-muted-foreground",
+            )}
+            title={overWip ? `WIP limit (${wipLimit}) exceeded` : undefined}
+          >
+            {issues.length}{loadMore ? "+" : ""}{wipLimit ? ` / ${wipLimit}` : ""}
           </span>
         </div>
 

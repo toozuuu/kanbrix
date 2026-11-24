@@ -137,6 +137,19 @@ export const api = {
       request<void>(`/projects/${projectId}`, {
         method: "DELETE",
       }),
+    filters: {
+      list: (projectId: string) =>
+        request<import("../types").SavedFilter[]>(`/projects/${projectId}/filters`),
+      create: (projectId: string, body: { name: string; query_params: Record<string, string> }) =>
+        request<import("../types").SavedFilter>(`/projects/${projectId}/filters`, {
+          method: "POST",
+          body: JSON.stringify(body),
+        }),
+      delete: (projectId: string, filterId: string) =>
+        request<void>(`/projects/${projectId}/filters/${filterId}`, {
+          method: "DELETE",
+        }),
+    },
   },
 
   // Issues
@@ -184,7 +197,9 @@ export const api = {
         priority?: string;
         status_id: string;
         assignee_id?: string | null;
+        parent_issue_id?: string | null;
         sprint_id?: string | null;
+        story_points?: number | null;
         custom_values?: Values;
         due_date?: string | null;
         labels?: string[];
@@ -204,7 +219,9 @@ export const api = {
         priority?: string;
         status_id?: string;
         assignee_id?: string | null;
+        parent_issue_id?: string | null;
         sprint_id?: string | null;
+        story_points?: number | null;
         custom_values?: Values;
         due_date?: string | null;
         labels?: string[];
@@ -220,6 +237,17 @@ export const api = {
         body: JSON.stringify(body),
       }),
     delete: (issueId: string) => request<void>(`/issues/${issueId}`, { method: "DELETE" }),
+    relations: (issueId: string) =>
+      request<import("../types").IssueRelations>(`/issues/${issueId}/relations`),
+    addLink: (issueId: string, body: { target_identifier: string; link_type: string }) =>
+      request<void>(`/issues/${issueId}/links`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    removeLink: (issueId: string, linkId: string) =>
+      request<void>(`/issues/${issueId}/links/${linkId}`, {
+        method: "DELETE",
+      }),
   },
 
   // Comments
@@ -264,7 +292,7 @@ export const api = {
           ? `/workspaces/${workspaceId}/labels?project_id=${encodeURIComponent(projectId)}`
           : `/workspaces/${workspaceId}/labels`,
       ),
-    create: (workspaceId: string, body: { name: string; color?: string }) =>
+    create: (workspaceId: string, body: { name: string; color?: string; project_id?: string }) =>
       request<Label>(`/workspaces/${workspaceId}/labels`, {
         method: "POST",
         body: JSON.stringify(body),

@@ -70,7 +70,7 @@ pub async fn list_project_issues(
                i.type, i.priority, i.status_id, s.name as status_name, s.category as status_category,
                i.assignee_id, u_assignee.name as "assignee_name?",
                i.reporter_id, u_reporter.name as reporter_name,
-               i.custom_values, i.parent_issue_id, i.sprint_id, i.position, i.due_date,
+               i.custom_values, i.parent_issue_id, i.sprint_id, i.story_points, i.position, i.due_date,
                i.created_at, i.updated_at
         FROM issues i
         JOIN projects p ON i.project_id = p.id
@@ -173,6 +173,7 @@ pub async fn list_project_issues(
                 reporter_name: r.reporter_name,
                 parent_issue_id: r.parent_issue_id,
                 sprint_id: r.sprint_id,
+                story_points: r.story_points,
                 position: r.position,
                 custom_values: r.custom_values,
                 due_date: r.due_date,
@@ -280,12 +281,12 @@ pub async fn create_issue(
         INSERT INTO issues (
             project_id, issue_number, title, description, type, priority,
             status_id, assignee_id, reporter_id, parent_issue_id, sprint_id,
-            position, due_date, custom_values
+            story_points, position, due_date, custom_values
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
         RETURNING id, project_id, issue_number, title, description, type, priority,
                   status_id, assignee_id, reporter_id, parent_issue_id, sprint_id,
-                  position, due_date, custom_values, created_at, updated_at
+                  story_points, position, due_date, custom_values, created_at, updated_at
         "#,
         project_id,
         issue_number,
@@ -298,6 +299,7 @@ pub async fn create_issue(
         auth_user.id,
         payload.parent_issue_id,
         payload.sprint_id,
+        payload.story_points,
         new_pos,
         payload.due_date,
         values
@@ -384,6 +386,7 @@ pub async fn create_issue(
             reporter_name: auth_user.name,
             parent_issue_id: issue.parent_issue_id,
             sprint_id: issue.sprint_id,
+            story_points: issue.story_points,
             position: issue.position,
             custom_values: issue.custom_values,
             due_date: issue.due_date,
@@ -406,7 +409,7 @@ pub async fn get_issue(
                i.type, i.priority, i.status_id, s.name as status_name, s.category as status_category,
                i.assignee_id, u_assignee.name as "assignee_name?",
                i.reporter_id, u_reporter.name as reporter_name,
-               i.custom_values, i.parent_issue_id, i.sprint_id, i.position, i.due_date,
+               i.custom_values, i.parent_issue_id, i.sprint_id, i.story_points, i.position, i.due_date,
                i.created_at, i.updated_at
         FROM issues i
         JOIN projects p ON i.project_id = p.id
@@ -445,6 +448,7 @@ pub async fn get_issue(
         reporter_name: r.reporter_name,
         parent_issue_id: r.parent_issue_id,
         sprint_id: r.sprint_id,
+        story_points: r.story_points,
         position: r.position,
         custom_values: r.custom_values,
         due_date: r.due_date,
@@ -527,6 +531,7 @@ pub async fn update_issue(
             sprint_id = CASE WHEN $8::boolean THEN $9 ELSE sprint_id END,
             position = COALESCE($10, position),
             due_date = CASE WHEN $14::boolean THEN $11 ELSE due_date END,
+            story_points = CASE WHEN $15::boolean THEN $16 ELSE story_points END,
             updated_at = NOW()
         WHERE id = $12
         "#,
@@ -543,7 +548,9 @@ pub async fn update_issue(
         payload.due_date.flatten(),
         issue_id,
         values,
-        payload.due_date.is_some()
+        payload.due_date.is_some(),
+        payload.story_points.is_some(),
+        payload.story_points.flatten()
     )
     .execute(&mut *tx)
     .await

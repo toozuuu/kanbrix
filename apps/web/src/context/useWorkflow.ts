@@ -7,6 +7,7 @@ export interface Column {
   name: string;
   category: string;
   issues: number;
+  wip_limit?: number | null;
 }
 export interface Workflow {
   form: import("../types/configuration").FormOverrides;

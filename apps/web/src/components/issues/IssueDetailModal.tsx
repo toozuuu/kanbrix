@@ -1,3 +1,5 @@
+import { ProjectLabelPicker, useProjectLabels } from "../issues/ProjectLabelPicker";
+import { IssueRelationsPanel } from "./IssueRelationsPanel";
 import { ConfirmAction } from "../ui/ActionDialogs";
 import { SelectBox } from "../ui/SelectBox";
 import { DateField } from "../ui/DateField";
@@ -42,7 +44,8 @@ export function IssueDetailModal({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const {t}=useTranslation();
   const cfg=useIssueForm();
-  const { labels: workspaceLabels, currentWorkspace } = useWorkspace();
+  const { currentWorkspace } = useWorkspace();
+  const { data: workspaceLabels = [] } = useProjectLabels(isOpen);
   const { user } = useAuth();
   const projectId = issue?.project_id;
   const workspaceId = currentWorkspace?.id;
@@ -244,6 +247,7 @@ export function IssueDetailModal({
             </div>
 
             <Attachments issue={issue.id}/>
+            <IssueRelationsPanel issue={issue} statuses={statuses} onChanged={() => onIssueUpdated(issue)} />
             {/* Discussion / Comments Section */}
             <div className="space-y-3 pt-3 border-t border-border/60">
               <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
@@ -393,33 +397,7 @@ export function IssueDetailModal({
               {/* Label selection when editing */}
               {isEditingLabels && (
                 <div className="mt-2 p-3 rounded-lg border border-border bg-secondary/40">
-                  {workspaceLabels.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {workspaceLabels.map((label) => (
-                        <label key={label.id} className="flex items-center gap-1.5 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={selectedLabels.includes(label.id)}
-                            onChange={() => handleToggleLabel(label.id)}
-                            className="h-3.5 w-3.5 rounded border border-input text-primary focus:ring-primary/20"
-                          />
-                          <Badge
-                            variant="outline"
-                            style={{
-                              backgroundColor: label.color.startsWith('#') ? label.color : undefined,
-                              borderColor: label.color.startsWith('#') ? label.color : '#d1d5db',
-                              color: label.color.startsWith('#') ? 'white' : undefined,
-                            }}
-                            className="text-xs"
-                          >
-                            {label.name}
-                          </Badge>
-                        </label>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground/60 italic">No labels available in this workspace</p>
-                  )}
+                  <ProjectLabelPicker selected={selectedLabels} toggle={handleToggleLabel} add={id => setSelectedLabels(prev => prev.includes(id) ? prev : [...prev,id])}/>
                   <Button
                     size="sm"
                     className="mt-2"
@@ -476,7 +454,7 @@ export function IssueDetailModal({
           </aside>
         </div>
       </div>
-      {confirmDelete && <ConfirmAction title="Delete issue?" description={`“${issue.title}” will be permanently deleted.`} action="Delete issue" onCancel={() => setConfirmDelete(false)} onConfirm={handleDelete} />}
+      {confirmDelete && <ConfirmAction title="Delete issue?" description={`ï¿½${issue.title}ï¿½ will be permanently deleted.`} action="Delete issue" onCancel={() => setConfirmDelete(false)} onConfirm={handleDelete} />}
     </Modal>
   );
 }

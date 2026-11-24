@@ -1,5 +1,6 @@
 pub mod configuration;
 pub mod dto;
+pub mod email;
 pub mod handlers;
 pub mod integrations;
 pub mod search;
@@ -66,6 +67,14 @@ pub fn routes() -> Router<AppState> {
         .route(
             "/:workspace_id/sync/seed-demo",
             post(sync::seed_demo),
+        )
+        .route(
+            "/:workspace_id/email",
+            get(email::read).put(email::save),
+        )
+        .route(
+            "/:workspace_id/email/test",
+            post(email::send_test),
         )
         .route(
             "/:workspace_id/configuration/preview",

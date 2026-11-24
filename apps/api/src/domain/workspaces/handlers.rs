@@ -303,6 +303,29 @@ pub async fn invite_member(
         .execute(&state.pool)
         .await
         .map_err(AppError::DatabaseError)?;
+
+        let ws_name: String = sqlx::query_scalar("SELECT name FROM workspaces WHERE id = $1")
+            .bind(workspace_id)
+            .fetch_optional(&state.pool)
+            .await
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| "Kanbrix".into());
+        let pool = state.pool.clone();
+        let recipient = payload.email.clone();
+        let assigned_role = payload.role.clone();
+        tokio::spawn(async move {
+            let subject = format!("You were added to {ws_name} on Kanbrix");
+            let body = format!(
+                "You have been added to the {ws_name} workspace with the {assigned_role} role."
+            );
+            if let Err(err) =
+                super::email::send_workspace_email(&pool, workspace_id, &recipient, &subject, &body, true)
+                    .await
+            {
+                tracing::debug!("Skipped/failed workspace invite email: {err:?}");
+            }
+        });
     }
 
     Ok(StatusCode::CREATED)

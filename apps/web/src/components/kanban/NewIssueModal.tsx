@@ -1,3 +1,4 @@
+import { ProjectLabelPicker } from "../issues/ProjectLabelPicker";
 import { SelectBox } from "../ui/SelectBox";
 import {useTranslation} from "react-i18next";
 import { useIssueForm } from "../../context/useIssueForm";
@@ -13,7 +14,6 @@ import { Modal } from "../ui/Modal";
 import { Input } from "../ui/Input";
 import { MarkdownEditor } from "../MarkdownEditor";
 import { Button } from "../ui/Button";
-import { LabelBadge } from "../ui/LabelBadge";
 import { useWorkspace } from "../../context/WorkspaceContext";
 import { api } from "../../lib/api";
 import { IssueStatus, IssueType, IssuePriority } from "../../types";
@@ -38,11 +38,12 @@ export function NewIssueModal({
   const cfg=useIssueForm();
   const configuration = useConfiguration();
   const [values,setValues]=useState<Values>({});
-  const { currentProject, labels: workspaceLabels } = useWorkspace();
+  const { currentProject } = useWorkspace();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState<IssueType>("Task");
   const [priority, setPriority] = useState<IssuePriority>("Medium");
+  const [storyPoints, setStoryPoints] = useState("");
   const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
   const workflow = useQuery({
     queryKey: ["project-workflow", currentProject?.id],
@@ -89,6 +90,7 @@ export function NewIssueModal({
           cfg.fields.some(field => field.id === id && (!field.issue_type || field.issue_type === issueType)),
         )),
         status_id: statusId,
+        story_points: storyPoints ? Number(storyPoints) : undefined,
         due_date: dueDate ? new Date(dueDate).toISOString() : undefined,
         labels: selectedLabels.length > 0 ? selectedLabels : undefined,
       });
@@ -97,6 +99,7 @@ export function NewIssueModal({
       setTitle("");
       setDescription("");
       setDueDate("");
+      setStoryPoints("");
       setSelectedLabels([]);
       onSuccess();
       onClose();
@@ -199,28 +202,22 @@ export function NewIssueModal({
           />
         </div>
 
+        <Input
+          label="Story points (optional)"
+          type="number"
+          min={0}
+          max={100}
+          placeholder="e.g. 3"
+          value={storyPoints}
+          onChange={(e) => setStoryPoints(e.target.value)}
+        />
+
         {/* Labels selector */}
         <div className="space-y-2">
           <label className="text-xs font-semibold text-foreground tracking-wide block">
             {t("Labels", "Labels")}
           </label>
-          {workspaceLabels.length > 0 ? (
-            <div className="flex flex-wrap gap-2 p-3 rounded-lg border border-border bg-secondary/30">
-              {workspaceLabels.map((label) => (
-                <label key={label.id} className="flex items-center gap-1.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={selectedLabels.includes(label.id)}
-                    onChange={() => handleToggleLabel(label.id)}
-                    className="h-3.5 w-3.5 rounded border border-input text-primary focus:ring-primary/20"
-                  />
-                  <LabelBadge label={label} className="text-xs" />
-                </label>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground/60 italic">No labels available in this workspace</p>
-          )}
+          <ProjectLabelPicker selected={selectedLabels} toggle={handleToggleLabel} add={id => setSelectedLabels(prev => prev.includes(id) ? prev : [...prev,id])}/>
         </div>
 
         </fieldset>

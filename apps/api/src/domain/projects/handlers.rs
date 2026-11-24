@@ -109,8 +109,13 @@ pub async fn create_project(
     })?;
 
     let (_, cfg) = crate::domain::workspaces::configuration::current(&mut tx, workspace_id).await?;
-    let template = match payload.template {
-        Some(name) => cfg.templates.iter().find(|t| t.name == name),
+    let owned_builtin = payload.template.as_deref().and_then(builtin_template);
+    let template = match payload.template.as_deref() {
+        Some(name) => cfg
+            .templates
+            .iter()
+            .find(|t| t.name == name)
+            .or(owned_builtin.as_ref()),
         None => cfg.templates.first(),
     }
     .ok_or_else(|| AppError::BadRequest("Unknown project template".into()))?;
@@ -145,6 +150,7 @@ pub async fn create_project(
             name: status_row.name,
             category: status_row.category,
             position: status_row.position,
+            wip_limit: None,
         });
     }
 
@@ -215,7 +221,7 @@ pub async fn get_project(
     }
     let statuses = sqlx::query!(
         r#"
-        SELECT id, name, category, position
+        SELECT id, name, category, position, wip_limit
         FROM issue_statuses
         WHERE project_id = $1
         ORDER BY position ASC
@@ -233,6 +239,7 @@ pub async fn get_project(
             name: s.name,
             category: s.category,
             position: s.position,
+            wip_limit: s.wip_limit,
         })
         .collect();
 
@@ -350,4 +357,272 @@ pub async fn delete_project(
     state.cache.del(&format!("project:{project_id}")).await;
 
     Ok(axum::http::StatusCode::NO_CONTENT)
+}
+
+#[derive(serde::Serialize)]
+pub struct SavedFilterResponse {
+    pub id: Uuid,
+    pub name: String,
+    pub query_params: serde_json::Value,
+}
+
+#[derive(serde::Deserialize)]
+pub struct CreateSavedFilterRequest {
+    pub name: String,
+    pub query_params: serde_json::Value,
+}
+
+pub async fn list_filters(
+    auth_user: AuthenticatedUser,
+    Path(project_id): Path<Uuid>,
+    State(state): State<AppState>,
+) -> Result<Json<Vec<SavedFilterResponse>>, AppError> {
+    let rows = sqlx::query_as::<_, (Uuid, String, serde_json::Value)>(
+        r#"
+        SELECT f.id, f.name, f.query_params
+        FROM project_saved_filters f
+        JOIN projects p ON p.id = f.project_id
+        JOIN workspace_members wm ON wm.workspace_id = p.workspace_id
+        WHERE f.project_id = $1 AND f.user_id = $2 AND wm.user_id = $2
+        ORDER BY f.created_at ASC
+        "#,
+    )
+    .bind(project_id)
+    .bind(auth_user.id)
+    .fetch_all(&state.pool)
+    .await
+    .map_err(AppError::DatabaseError)?;
+
+    Ok(Json(
+        rows.into_iter()
+            .map(|(id, name, query_params)| SavedFilterResponse {
+                id,
+                name,
+                query_params,
+            })
+            .collect(),
+    ))
+}
+
+pub async fn create_filter(
+    auth_user: AuthenticatedUser,
+    Path(project_id): Path<Uuid>,
+    State(state): State<AppState>,
+    Json(req): Json<CreateSavedFilterRequest>,
+) -> Result<(StatusCode, Json<SavedFilterResponse>), AppError> {
+    let name = req.name.trim();
+    if name.is_empty() || name.len() > 80 {
+        return Err(AppError::BadRequest(
+            "Filter name must be between 1 and 80 characters".into(),
+        ));
+    }
+
+    let has_access = sqlx::query_scalar::<_, bool>(
+        r#"
+        SELECT EXISTS(
+            SELECT 1 FROM projects p
+            JOIN workspace_members wm ON wm.workspace_id = p.workspace_id
+            WHERE p.id = $1 AND wm.user_id = $2
+        )
+        "#,
+    )
+    .bind(project_id)
+    .bind(auth_user.id)
+    .fetch_one(&state.pool)
+    .await
+    .map_err(AppError::DatabaseError)?;
+
+    if !has_access {
+        return Err(AppError::NotFound("Project not found".into()));
+    }
+
+    let id = sqlx::query_scalar::<_, Uuid>(
+        "INSERT INTO project_saved_filters (project_id, user_id, name, query_params) VALUES ($1, $2, $3, $4) RETURNING id",
+    )
+    .bind(project_id)
+    .bind(auth_user.id)
+    .bind(name)
+    .bind(&req.query_params)
+    .fetch_one(&state.pool)
+    .await
+    .map_err(AppError::DatabaseError)?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(SavedFilterResponse {
+            id,
+            name: name.to_string(),
+            query_params: req.query_params,
+        }),
+    ))
+}
+
+pub async fn delete_filter(
+    auth_user: AuthenticatedUser,
+    Path((project_id, filter_id)): Path<(Uuid, Uuid)>,
+    State(state): State<AppState>,
+) -> Result<StatusCode, AppError> {
+    sqlx::query("DELETE FROM project_saved_filters WHERE id = $1 AND project_id = $2 AND user_id = $3")
+        .bind(filter_id)
+        .bind(project_id)
+        .bind(auth_user.id)
+        .execute(&state.pool)
+        .await
+        .map_err(AppError::DatabaseError)?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+fn builtin_template(name: &str) -> Option<crate::domain::workspaces::configuration::Template> {
+    use crate::domain::workspaces::configuration::{Column, FormOverrides, Template};
+    let col = |n: &str, cat: &str| Column {
+        name: n.to_string(),
+        category: cat.to_string(),
+    };
+    let (sprints, cols) = match name {
+        "Kanban" => (
+            false,
+            vec![
+                col("Backlog", "Backlog"),
+                col("To Do", "Todo"),
+                col("In Progress", "InProgress"),
+                col("Done", "Done"),
+            ],
+        ),
+        "Scrum" => (
+            true,
+            vec![
+                col("Backlog", "Backlog"),
+                col("To Do", "Todo"),
+                col("In Progress", "InProgress"),
+                col("In Review", "InReview"),
+                col("Done", "Done"),
+            ],
+        ),
+        "Prioritization" => (
+            false,
+            vec![
+                col("Ideas", "Backlog"),
+                col("Evaluating", "Todo"),
+                col("Committed", "InProgress"),
+                col("Shipped", "Done"),
+            ],
+        ),
+        "Development requests" => (
+            true,
+            vec![
+                col("Triage", "Backlog"),
+                col("Accepted", "Todo"),
+                col("In Development", "InProgress"),
+                col("In Review", "InReview"),
+                col("Released", "Done"),
+            ],
+        ),
+        "Cross-team planning" => (
+            true,
+            vec![
+                col("Proposed", "Backlog"),
+                col("Aligned", "Todo"),
+                col("In Execution", "InProgress"),
+                col("Completed", "Done"),
+            ],
+        ),
+        "Process control" => (
+            false,
+            vec![
+                col("Queued", "Todo"),
+                col("In Progress", "InProgress"),
+                col("QA Check", "InReview"),
+                col("Completed", "Done"),
+            ],
+        ),
+        "IT Service Desk" => (
+            false,
+            vec![
+                col("New", "Backlog"),
+                col("Triaged", "Todo"),
+                col("Investigating", "InProgress"),
+                col("Pending User", "InReview"),
+                col("Resolved", "Done"),
+            ],
+        ),
+        "Incident Management" => (
+            false,
+            vec![
+                col("Detected", "Backlog"),
+                col("Acknowledged", "Todo"),
+                col("Mitigating", "InProgress"),
+                col("Postmortem", "InReview"),
+                col("Closed", "Done"),
+            ],
+        ),
+        "Change Management" => (
+            false,
+            vec![
+                col("Requested", "Backlog"),
+                col("CAB Review", "Todo"),
+                col("Scheduled", "InProgress"),
+                col("Validating", "InReview"),
+                col("Deployed", "Done"),
+            ],
+        ),
+        "DevOps & CI/CD" => (
+            true,
+            vec![
+                col("Backlog", "Backlog"),
+                col("Ready", "Todo"),
+                col("Building", "InProgress"),
+                col("Staging QA", "InReview"),
+                col("Production", "Done"),
+            ],
+        ),
+        "Security & Compliance" => (
+            false,
+            vec![
+                col("Reported", "Backlog"),
+                col("Triaged", "Todo"),
+                col("Patching", "InProgress"),
+                col("Verification", "InReview"),
+                col("Remediated", "Done"),
+            ],
+        ),
+        "Bug Tracking" => (
+            true,
+            vec![
+                col("Reported", "Backlog"),
+                col("Confirmed", "Todo"),
+                col("Fixing", "InProgress"),
+                col("QA Testing", "InReview"),
+                col("Verified", "Done"),
+            ],
+        ),
+        "Infrastructure & Cloud" => (
+            false,
+            vec![
+                col("Proposed", "Backlog"),
+                col("Approved", "Todo"),
+                col("Provisioning", "InProgress"),
+                col("Audit", "InReview"),
+                col("Live", "Done"),
+            ],
+        ),
+        "Release Management" => (
+            true,
+            vec![
+                col("Planned", "Backlog"),
+                col("Code Freeze", "Todo"),
+                col("QA Sign-off", "InProgress"),
+                col("Canary", "InReview"),
+                col("Released", "Done"),
+            ],
+        ),
+        _ => return None,
+    };
+    Some(Template {
+        name: name.to_string(),
+        sprints,
+        columns: cols,
+        transitions: Vec::new(),
+        form: FormOverrides::default(),
+    })
 }

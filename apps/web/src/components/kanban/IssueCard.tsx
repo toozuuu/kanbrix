@@ -72,6 +72,11 @@ export function IssueCard({ issue, onClick, isOverlay = false }: IssueCardProps)
         <span className={cn("rounded border px-1.5 font-medium", typeBadge.color)}>{typeBadge.label}</span>
         <span className="font-mono text-muted-foreground group-hover:text-primary">{issue.identifier}</span>
         <div className="ml-auto flex items-center gap-1.5">
+          {issue.story_points != null && (
+            <span className="rounded bg-secondary px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground" title="Story points">
+              {issue.story_points} pts
+            </span>
+          )}
           <span className={cn("rounded border px-1.5 font-medium", priorityStyle)}>{issue.priority}</span>
           {issue.assignee_name ? (
             <Avatar name={issue.assignee_name} size="sm" className="h-5 w-5 text-xs" />

@@ -2,11 +2,12 @@ pub mod attachments;
 pub mod dto;
 pub mod handlers;
 pub mod live;
+pub mod relations;
 pub mod report;
 
 use crate::common::state::AppState;
 use axum::{
-    routing::{get, post},
+    routing::{delete, get, post},
     Router,
 };
 
@@ -26,6 +27,9 @@ pub fn routes() -> Router<AppState> {
         )
         .route("/:issue_id/attachments/:id", get(attachments::download))
         .route("/:issue_id/reorder", post(handlers::reorder_issue))
+        .route("/:issue_id/relations", get(relations::get_relations))
+        .route("/:issue_id/links", post(relations::add_link))
+        .route("/:issue_id/links/:link_id", delete(relations::remove_link))
 }
 
 pub fn project_routes() -> Router<AppState> {

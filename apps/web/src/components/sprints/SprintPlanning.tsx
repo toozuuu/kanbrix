@@ -153,6 +153,7 @@ export function SprintPlanning({
       {/* Planned Sprints */}
       {plannedSprints.map((sprint) => {
         const sprintIssues = bySprint.get(sprint.id) ?? [];
+        const sprintPoints = sprintIssues.reduce((sum, i) => sum + (i.story_points ?? 0), 0);
 
         return (
           <div key={sprint.id} className="rounded-2xl border border-border/75 bg-card p-5 space-y-3 shadow-[var(--shadow-sm)]">
@@ -163,6 +164,11 @@ export function SprintPlanning({
                 <span className="text-xs bg-muted px-2 py-0.5 rounded-full font-semibold text-muted-foreground">
                   {sprintIssues.length} issues
                 </span>
+                {sprintPoints > 0 && (
+                  <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold tabular-nums">
+                    {sprintPoints} pts
+                  </span>
+                )}
               </div>
               <Button
                 size="sm"

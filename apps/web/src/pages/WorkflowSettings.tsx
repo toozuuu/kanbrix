@@ -178,6 +178,24 @@ function WorkflowEditor({
                 ),
               )}
             </SelectBox>
+            <input
+              type="number"
+              min={1}
+              aria-label="WIP limit"
+              placeholder="WIP"
+              title="Optional WIP limit"
+              className={control + " w-20 shrink-0"}
+              value={c.wip_limit ?? ""}
+              onChange={(e) => {
+                const raw = e.target.value;
+                const val = raw === "" ? null : Math.max(1, Number(raw));
+                columns(
+                  draft.columns.map((v) =>
+                    v.id === c.id ? { ...v, wip_limit: val } : v,
+                  ),
+                );
+              }}
+            />
             <button
               aria-label="Move column earlier"
               disabled={!i}

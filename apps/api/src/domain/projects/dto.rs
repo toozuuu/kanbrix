@@ -34,6 +34,7 @@ pub struct StatusSummary {
     pub name: String,
     pub category: String,
     pub position: f64,
+    pub wip_limit: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
