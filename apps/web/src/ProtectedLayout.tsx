@@ -5,7 +5,7 @@ import {useToast} from "./components/ui/Toast";
 import { useWorkflow } from "./context/useWorkflow";
 import { useConfiguration } from "./context/useConfiguration";
 import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, useMatch, useNavigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import { useWorkspace } from "./context/WorkspaceContext";
 
@@ -60,6 +60,8 @@ export default function ProtectedLayout() {
 
   const {toast}=useToast();
   const navigate = useNavigate();
+  const isProjectsPage = useMatch("/projects") !== null;
+  const routesKey = isProjectsPage ? currentWorkspace?.id : `${currentWorkspace?.id}/${currentProject?.id}`;
 
   useEffect(()=>{setSelectedIssue(prev=>prev?.project_id===currentProject?.id?prev:null);setIsCreateIssueOpen(false);},[currentProject?.id,currentWorkspace?.id]);
 
@@ -170,7 +172,7 @@ export default function ProtectedLayout() {
         <Sidebar />
         <main id="workspace-content" tabIndex={-1} className="min-w-0 flex-1 overflow-y-auto p-3 sm:p-6">
           <Suspense fallback={<ProjectSpinner size="sm" message="Loading page…" />}>
-            <Routes key={currentWorkspace?.id + "/" + currentProject?.id}>
+            <Routes key={routesKey}>
               <Route
                 path="/dashboard"
                 element={
