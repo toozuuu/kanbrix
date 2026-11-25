@@ -83,7 +83,7 @@ describe("ExternalSyncPanel", () => {
       .mockResolvedValueOnce({
         project_id: "p-2",
         project_key: "PLAT",
-        imported_count: 1,
+        imported_count: 1, updated_count: 0, skipped_count: 0,
       });
 
     render(
@@ -113,7 +113,7 @@ describe("ExternalSyncPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: /Sync 1 Tickets to Kanbrix/ }));
 
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent("Synced 1 tickets into PLAT."),
+      expect(screen.getByRole("status")).toHaveTextContent("PLAT: 1 created, 0 updated, 0 skipped"),
     );
     expect(request).toHaveBeenLastCalledWith(
       "/workspaces/ws-1/sync/import",

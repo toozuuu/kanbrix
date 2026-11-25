@@ -114,6 +114,7 @@ pub struct IssueFilterQuery {
     pub limit: Option<i64>,
     pub offset: Option<i64>,
     pub unassigned: Option<bool>,
+    pub open_only: Option<bool>,
     pub recently_updated: Option<bool>,
     pub due_before: Option<DateTime<Utc>>,
 }

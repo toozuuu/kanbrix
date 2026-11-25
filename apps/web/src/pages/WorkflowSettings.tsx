@@ -127,11 +127,11 @@ function WorkflowEditor({
     }
   }
   return (
-    <section className="rounded-2xl border border-border/75 bg-card p-5 sm:p-6 space-y-4 shadow-[var(--shadow-sm)]">
+    <section className="workflow-editor min-w-0 rounded-2xl border border-border/75 bg-card p-5 sm:p-6 space-y-4 shadow-[var(--shadow-sm)]">
       <h2 className="font-semibold">{name} workflow</h2>
       <fieldset
         disabled={!initial.editable || busy}
-        className="space-y-3"
+        className="min-w-0 space-y-3"
         onChange={() => preview(false)}
       >
         <label className="block text-sm">
@@ -148,7 +148,8 @@ function WorkflowEditor({
         {configuration.isError && <p role="alert">Could not load templates. <button className="underline" onClick={() => void configuration.refetch()}>Retry</button></p>}
         {appliedTemplate && <p role="status" className="text-sm text-muted-foreground">{appliedTemplate} applied to the draft. Preview and publish to update this project.</p>}
         {draft.columns.map((c, i) => (
-          <div className="flex items-center gap-2" key={c.id}>
+          <div className="workflow-column-row" key={c.id}>
+            <label>Column name
             <input
               aria-label="Column name"
               className={control}
@@ -161,6 +162,8 @@ function WorkflowEditor({
                 )
               }
             />
+            </label>
+            <label>Category
             <SelectBox fullWidth
               aria-label="Column category"
               value={c.category}
@@ -178,13 +181,15 @@ function WorkflowEditor({
                 ),
               )}
             </SelectBox>
+            </label>
+            <label>WIP limit
             <input
               type="number"
               min={1}
               aria-label="WIP limit"
               placeholder="WIP"
               title="Optional WIP limit"
-              className={control + " w-20 shrink-0"}
+              className={control}
               value={c.wip_limit ?? ""}
               onChange={(e) => {
                 const raw = e.target.value;
@@ -196,7 +201,9 @@ function WorkflowEditor({
                 );
               }}
             />
-            <button
+            </label>
+            <div className="flex gap-1">
+            <button type="button" className="h-10 w-10 rounded-md border border-input disabled:opacity-40"
               aria-label="Move column earlier"
               disabled={!i}
               onClick={() => {
@@ -207,7 +214,7 @@ function WorkflowEditor({
             >
               ↑
             </button>
-            <button
+            <button type="button" className="h-10 w-10 rounded-md border border-input"
               aria-label="Remove column"
               onClick={() =>
                 columns(draft.columns.filter((v) => v.id !== c.id))
@@ -215,6 +222,7 @@ function WorkflowEditor({
             >
               ×
             </button>
+            </div>
           </div>
         ))}
         <Button

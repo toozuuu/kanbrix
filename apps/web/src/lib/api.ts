@@ -154,8 +154,8 @@ export const api = {
 
   // Issues
   issues: {
-    counts: (projectId: string) =>
-      request<{ total: number; assigned: number; in_progress: number; completed: number }>(`/projects/${projectId}/issue-counts`),
+    counts: (projectId: string, sprint?: string) =>
+      request<{ total: number; assigned: number; in_progress: number; completed: number; workload: {id: string | null; name: string; count: number; points: number; unestimated: number}[] }>(`/projects/${projectId}/issue-counts${sprint ? "?sprint_id=" + encodeURIComponent(sprint) : ""}`),
     list: (
       projectId: string,
       filters: {
@@ -171,6 +171,7 @@ export const api = {
         recently_updated?: boolean;
         due_before?: string;
         unassigned?: boolean;
+        open_only?: boolean;
         label_id?: string;
         label_ids?: string[];
       } = {}

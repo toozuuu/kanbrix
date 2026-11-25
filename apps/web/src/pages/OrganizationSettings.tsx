@@ -736,10 +736,11 @@ function Editor({
         )}
         {tab === "History" && (
           <>
-            <Button size="sm" variant="secondary" onClick={download}>
+            <div className="grid items-end gap-4 rounded-xl border border-border p-4 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <Button className="sm:order-2" size="sm" variant="secondary" onClick={download}>
               Export published configuration
             </Button>
-            <label className="block text-sm">
+            <label className="grid min-w-0 gap-1 text-sm">
               Import configuration
               <input
                 className={control}
@@ -773,29 +774,33 @@ function Editor({
                 }}
               />
             </label>
-            {history.data?.map((r) => (
-              <div
-                className="flex justify-between gap-2 border-b border-border py-2"
-                key={r.revision}
-              >
-                <span>
-                  Revision {r.revision} · {r.author} ·{" "}
-                  {r.created_at &&
-                    new Date(r.created_at).toLocaleString(undefined, {
-                      timeZone: snapshot.configuration.timezone,
-                    })}
-                </span>
-                <button
-                  disabled={r.revision === snapshot.revision}
-                  onClick={() => {
-                    setDraft(r.configuration);
-                    setPreview(false);
-                  }}
-                >
-                  Restore draft
-                </button>
-              </div>
-            ))}
+            </div>
+            <section aria-label="Revision history" className="min-w-0 space-y-2">
+              <h3 className="text-sm font-semibold">Revision history</h3>
+              {history.isLoading && <p role="status">Loading revisions…</p>}
+              {history.isError && <p role="alert">Could not load revisions. <button className="underline" onClick={() => void history.refetch()}>Retry</button></p>}
+              <ul className="divide-y divide-border rounded-xl border border-border">
+                {history.data?.map(r => (
+                  <li key={r.revision} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                    <div className="min-w-0">
+                      <span className="font-semibold">Revision {r.revision}</span>
+                      <p className="break-words text-sm text-muted-foreground">
+                        {r.author}
+                        {r.created_at && <> · <time dateTime={r.created_at}>{new Date(r.created_at).toLocaleString(undefined, {
+                          timeZone: snapshot.configuration.timezone,
+                        })}</time></>}
+                      </p>
+                    </div>
+                    {r.revision === snapshot.revision
+                      ? <span className="text-sm font-medium text-muted-foreground">Currently published</span>
+                      : <Button size="sm" variant="secondary" onClick={() => {
+                          setDraft(r.configuration);
+                          setPreview(false);
+                        }}>Restore draft</Button>}
+                  </li>
+                ))}
+              </ul>
+            </section>
           </>
         )}
       </fieldset>
@@ -812,6 +817,7 @@ function Editor({
               )}
             </p>
           )}
+          <div className="flex flex-wrap gap-2">
           <Button
             isLoading={busy}
             onClick={() => (preview ? void publish() : void review())}
@@ -827,6 +833,7 @@ function Editor({
           >
             Discard draft
           </Button>
+          </div>
         </div>
       )}
     </section>

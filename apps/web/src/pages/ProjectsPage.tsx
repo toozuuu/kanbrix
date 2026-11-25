@@ -34,6 +34,7 @@ export function ProjectsPage() {
   const [deletingProject, setDeletingProject] = useState<Project | null>(null);
   const {display:formatDate}=useCalendar();
   const navigate = useNavigate();
+  const [firstProject, setFirstProject] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleEditOpen = (proj: Project) => {
@@ -98,6 +99,7 @@ export function ProjectsPage() {
       toast("Project created successfully!", "success");
       await refreshProjects();
       setCurrentProject(newProj);
+      if (!projects.length) setFirstProject(newProj.id);
       setIsModalOpen(false);
       setName("");
       setProjectKey("");
@@ -131,6 +133,14 @@ export function ProjectsPage() {
 
   return (
     <div className="space-y-6">
+      {firstProject && currentProject?.id === firstProject && <section className="rounded-xl border border-border bg-card p-5">
+        <h2 className="font-semibold">Start working in {currentProject.name}</h2>
+        <p className="my-2 text-sm text-muted-foreground">Invite a teammate, then create an issue on the board. Open the issue to assign it and move it as work progresses.</p>
+        <div className="flex flex-wrap gap-2">
+          {canManage && <Button variant="secondary" onClick={() => navigate("/members")}>Invite a teammate</Button>}
+          <Button onClick={() => navigate("/kanban")}>Open project board</Button>
+        </div>
+      </section>}
       {/* Top Header */}
       <div className="page-header">
         <div>
@@ -269,6 +279,7 @@ export function ProjectsPage() {
             <Button size="sm" disabled={!currentWorkspace} onClick={() => setIsModalOpen(true)}>
               Create Project
             </Button>
+            {canManage && <Button variant="outline" size="sm" onClick={() => navigate("/settings?view=integrations")}>Import existing project</Button>}
           </div>
         )}
       </div>

@@ -5,6 +5,7 @@ import { ConfirmAction } from "../components/ui/ActionDialogs";
 import { SelectBox } from "../components/ui/SelectBox";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useWorkflow } from "../context/useWorkflow";
 import { useWorkspace } from "../context/WorkspaceContext";
 import { useAuth } from "../context/AuthContext";
 import { request } from "../lib/api";
@@ -30,7 +31,8 @@ interface Integration {
   }[];
 }
 export function IntegrationSettings() {
-  const { currentWorkspace } = useWorkspace();
+  const { currentWorkspace, currentProject } = useWorkspace();
+  const workflow = useWorkflow();
   const { user } = useAuth();
   const ws = currentWorkspace?.id;
   const admin =
@@ -47,6 +49,7 @@ export function IntegrationSettings() {
   return (
     <div className="space-y-6">
       <EmailSettingsPanel workspaceId={ws!} />
+      {currentProject && <GitTransitions key={currentProject.id} base={`/workspaces/${ws}/projects/${currentProject.id}/git-transitions`} statuses={workflow.data?.columns ?? currentProject.statuses ?? []} />}
       <ExternalSyncPanel workspaceId={ws!} />
       <Editor
         key={ws}
@@ -215,4 +218,37 @@ function Editor({
       </fieldset>
     </section>
   );
+}
+
+type GitRules = { opened: string | null; merged: string | null };
+
+function GitTransitions({ base, statuses }: { base: string; statuses: {id: string; name: string}[] }) {
+  const query = useQuery({queryKey: ["git-transitions", base], queryFn: () => request<GitRules>(base)});
+  const [draft, setDraft] = useState<GitRules | null>(null);
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+  const rules = draft ?? query.data;
+  if (!rules) return <p>{query.isError ? "Could not load Git transitions." : "Loading Git transitions…"}</p>;
+  async function save() {
+    setSaving(true);
+    try {
+      await request(base, {method: "PUT", body: JSON.stringify(draft)});
+      await query.refetch();
+      setDraft(null);
+      toast("Git transitions saved", "success");
+    } catch {
+      toast("Could not save Git transitions", "error");
+    } finally { setSaving(false); }
+  }
+  return <fieldset disabled={saving} className="space-y-3">
+    <legend>Project pull request transitions</legend>
+    {(["opened", "merged"] as const).map(event => <label key={event} className="block">
+      Pull request {event}
+      <select className={control} value={rules[event] ?? ""} onChange={e => setDraft({...rules, [event]: e.target.value || null})}>
+        <option value="">Default ({event === "opened" ? "In Review" : "Done"})</option>
+        {statuses.map(status => <option key={status.id} value={status.id}>{status.name}</option>)}
+      </select>
+    </label>)}
+    <Button disabled={!draft} onClick={() => void save()}>Save transitions</Button>
+  </fieldset>;
 }

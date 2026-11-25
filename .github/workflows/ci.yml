@@ -123,9 +123,15 @@ jobs:
           npm run lint
       - name: Exercise attachments, live updates, reports and workspace search
         working-directory: apps/web
-        run: node scripts/test-collaboration.mjs
+        run: RECOVERY_FIXTURE="$RUNNER_TEMP/recovery.json" node scripts/test-collaboration.mjs
       - name: Verify metadata cache is populated
         run: test "$(docker compose exec -T redis redis-cli DBSIZE)" -gt 0
+      - name: Verify signed-in dashboard and responsive settings
+        run: |
+          python3 -m venv "$RUNNER_TEMP/browser-tests"
+          "$RUNNER_TEMP/browser-tests/bin/pip" install playwright
+          "$RUNNER_TEMP/browser-tests/bin/playwright" install --with-deps chromium
+          "$RUNNER_TEMP/browser-tests/bin/python" scripts/test-dashboard-browser.py
       - name: Verify sprint lifecycle through the API
         run: python3 scripts/test-sprint.py
       - name: Verify organization configuration through the API
@@ -140,6 +146,21 @@ jobs:
           done
           test -s "$RUNNER_TEMP/rusttrack.rows"
           diff "$RUNNER_TEMP/rusttrack.rows" "$RUNNER_TEMP/recovery.rows"
+      - name: Recover uploads and verify an authenticated download on a fresh API
+        run: |
+          docker compose exec -T api tar -C /app/uploads -cf - . > "$RUNNER_TEMP/uploads.tar"
+          docker volume create recovery_uploads
+          docker run --rm -i -v recovery_uploads:/restore alpine tar -C /restore -xf - < "$RUNNER_TEMP/uploads.tar"
+          docker compose run --no-deps -d --name recovery-api -p 127.0.0.1:8081:8080 -v recovery_uploads:/app/uploads -e DATABASE_URL=postgres://postgres:postgrespassword@postgres:5432/recovery api
+          curl --fail --retry 30 --retry-all-errors --retry-delay 2 http://localhost:8081/ready
+          base=http://localhost:8081/api/v1
+          fixture="$RUNNER_TEMP/recovery.json"
+          jq -c '.credentials | {email,password}' "$fixture" | curl -fsS -c "$RUNNER_TEMP/cookies" -H 'Content-Type: application/json' --data-binary @- "$base/auth/login" >/dev/null
+          issue=$(jq -r .issue "$fixture")
+          attachment=$(jq -r .attachment "$fixture")
+          curl -fsS -b "$RUNNER_TEMP/cookies" "$base/issues/$issue" | jq -e '.title == "Release issue"'
+          curl -fsS -b "$RUNNER_TEMP/cookies" "$base/issues/$issue/attachments/$attachment" > "$RUNNER_TEMP/recovered.txt"
+          printf 'release notes' | cmp - "$RUNNER_TEMP/recovered.txt"
       - if: failure()
         run: docker compose logs --tail=100
       - if: always()

@@ -28,9 +28,11 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   const [projectStatus, setProjectStatus] = useState<WorkspaceContextType["projectStatus"]>("loading");
   const projectRequest = useRef(0);
+  const workspaceRequest = useRef(0);
   const activeWs=useRef(currentWorkspace?.id);
   activeWs.current=currentWorkspace?.id;
   const refreshWorkspaces = async () => {
+    const request = ++workspaceRequest.current;
     if (!user) {
       setWorkspaces([]);
       setCurrentWorkspaceState(null);
@@ -42,20 +44,24 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const list = await api.workspaces.list();
+      if (request !== workspaceRequest.current) return;
       setWorkspaces(list);
 
       // Auto-select first workspace or restore saved
       if (list.length > 0) {
         const savedId = localStorage.getItem("rusttrack-active-workspace");
         const active = list.find((w) => w.id === savedId) || list[0];
-        setCurrentWorkspaceState(active);
+        setCurrentWorkspace(active);
       } else {
+        ++projectRequest.current;
+        setProjects([]);
+        setCurrentProject(null);
         setCurrentWorkspaceState(null);
       }
     } catch (e) {
       console.error("Failed to load workspaces", e);
     } finally {
-      setIsLoading(false);
+      if (request === workspaceRequest.current) setIsLoading(false);
     }
   };
 

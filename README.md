@@ -41,7 +41,7 @@ For a support desk, add a Ticket type and a Customer impact field in **Issue for
 
 Project workflow delegation requires both the organization delegation switch and an individual member assignment. Owners control role restrictions. The issue type and priority lists use their stored text values. Changing those lists affects future selections and preserves the text on existing issues. Custom fields use IDs, and select options support separate display labels.
 
-**Integration events** support issue creation, status changes and deadlines within the next 24 hours. Configure the events and assignee notifications under Settings. A workspace administrator can issue or revoke a read-only bearer token for the workspace event feed. Page through the feed with the last received event ID in the `after` query parameter.
+**Integration events** support issue creation, status changes and deadlines within the next 24 hours. Configure the events and assignee notifications under Settings. A workspace administrator can issue or revoke a bearer token for the workspace event feed and incoming Git webhooks. Page through the feed with the last received event ID in the `after` query parameter.
 
 For outbound delivery, the installation operator supplies `KANBRIX_WEBHOOK_DESTINATIONS` as a JSON object keyed by workspace UUID. Each workspace maps a destination name to an HTTPS URL and an optional bearer token. For example:
 
@@ -59,8 +59,13 @@ For local installation, VPS setup, HTTPS, backups, restore, upgrades, and troubl
 
 ## Syncing from Jira, GitHub, Linear & Git Webhooks
 
-- **External Sync & Import**: Under **Settings → Integrations**, workspace admins can fetch and preview up to 500 tickets from **Jira** (Cloud REST v3 or Server/DC v2), **GitHub Issues**, **Linear**, or **CSV/JSON** exports, map external statuses to Kanbrix workflow columns, and import or re-sync without duplicates (deduplicated by `external_id`). You can also export any project's issues to CSV or JSON, or click **Load sample project** on **Projects** to seed a demo project in seconds.
+- **External Sync & Import**: Under **Settings → Integrations**, workspace admins can fetch and preview tickets from **Jira** (Cloud REST v3 or Server/DC v2), **GitHub Issues**, **Linear**, or **CSV/JSON** exports, map external statuses to Kanbrix workflow columns, and import or re-sync without duplicates (deduplicated by `external_id`). You can also export any project's issues to CSV or JSON, or click **Load sample project** on **Projects** to seed a demo project in seconds.
 - **Git PR Auto-Linking**: Point a GitHub or GitLab webhook at `POST /api/v1/workspaces/{workspace_id}/integrations/git-webhook` with `Authorization: Bearer <integration_feed_token>`. Issue keys like `CORE-12` in PR titles or commit messages automatically post a link comment and transition the issue (`opened` → `InReview`, `merged` → `Done`).
+
+Jira preview follows Cloud page tokens or Server offsets up to 10,000 issues, subject to the request size limit. Jira rich-text descriptions transfer as plain text. Imports report created, updated and skipped counts. Select the same destination project to update issues by source ID. Database errors roll back the entire import.
+
+Under **Settings > Integrations**, select the opened and merged pull-request destinations for the active project. The defaults use the In Review and Done categories.
+
 
 ## Production deployment
 
@@ -72,7 +77,7 @@ docker compose -f docker-compose.production.yml up --build -d
 
  The production configuration uses separate volumes, secure cookies, a private API and database, and starts with an empty workspace database. The first user can register from the web UI. Apply per-client request limits at the TLS proxy when it shares a single source address with Nginx.
 
-CI checks a fresh local deployment and restores its PostgreSQL dump into a separate database. Back up the uploads volume separately when using local attachment storage. To compare board and deadline query plans on a disposable seeded database, run `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v size=1000 -f scripts/benchmark.sql`. The fixture rolls back after reporting the plans.
+The Compose CI job restores PostgreSQL and an uploads archive, starts a separate API, signs in and compares a restored attachment with its original contents. Back up the uploads volume separately when using local attachment storage. To compare board and deadline query plans on a disposable seeded database, run `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v size=1000 -f scripts/benchmark.sql`. The fixture rolls back after reporting the plans.
 
 For a public site, set `SITE_URL` to its full HTTPS origin in your Compose environment or root `.env` file before building the web image. The build uses that origin for the homepage canonical URL and sitemap. The public landing page is rendered to HTML at build time. Account and workspace routes carry a noindex directive.
 
@@ -100,4 +105,6 @@ npm run build
 
 ## License
 
-Kanbrix is available under the [GNU Affero General Public License, version 3 or later](LICENSE).
+Kanbrix is available under the [MIT License](LICENSE).
+
+> **Note:** This project is provided for personal and organizational use. Feel free to clone, modify, and customize it for your own requirements, but please give credit to the original owners when using or distributing this software.

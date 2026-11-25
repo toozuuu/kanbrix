@@ -41,7 +41,7 @@ export function NewIssueModal({
   const { currentProject } = useWorkspace();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [type, setType] = useState<IssueType>("Task");
+  const [type, setType] = useState<string>("Task");
   const [priority, setPriority] = useState<IssuePriority>("Medium");
   const [storyPoints, setStoryPoints] = useState("");
   const [selectedLabels, setSelectedLabels] = useState<string[]>([]);

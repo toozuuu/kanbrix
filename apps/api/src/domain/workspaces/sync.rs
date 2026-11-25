@@ -59,6 +59,9 @@ pub struct SyncImportResponse {
     pub project_id: Uuid,
     pub project_key: String,
     pub imported_count: usize,
+    pub updated_count: usize,
+    pub outcomes: Vec<serde_json::Value>,
+    pub skipped_count: usize,
 }
 
 fn normalize_key(raw: &str) -> String {
@@ -133,6 +136,24 @@ pub async fn preview(
     };
 
     Ok(Json(result))
+}
+
+fn jira_description(value: &Value) -> Option<String> {
+    if let Some(text) = value.as_str() {
+        return Some(text.to_owned());
+    }
+    if let Some(text) = value.get("text").and_then(Value::as_str) {
+        return Some(text.to_owned());
+    }
+    if value.get("type").and_then(Value::as_str) == Some("hardBreak") {
+        return Some("\n".into());
+    }
+    let parts: Vec<_> = value.get("content")?.as_array()?.iter().filter_map(jira_description).collect();
+    let separator = match value.get("type").and_then(Value::as_str) {
+        Some("paragraph" | "heading") => "",
+        _ => "\n",
+    };
+    Some(parts.join(separator))
 }
 
 async fn preview_jira(
@@ -211,7 +232,11 @@ async fn preview_jira(
     let mut next_page_token: Option<String> = None;
     let mut start_at: usize = 0;
 
-    for _page in 0..5 {
+    let mut seen_tokens = BTreeSet::new();
+    loop {
+        if issues.len() >= 10_000 {
+            return Err(AppError::BadRequest("Jira preview exceeds 10,000 issues".into()));
+        }
         let mut params = vec![
             ("jql", format!("project = \"{project_key}\"")),
             ("maxResults", "100".into()),
@@ -247,21 +272,20 @@ async fn preview_jira(
         let items = search_json
             .get("issues")
             .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
+            .ok_or_else(|| AppError::BadRequest("Jira search response is missing its issues list".into()))?;
         let count = items.len();
-        for item in &items {
-            let key = item.get("key").and_then(Value::as_str).unwrap_or("JIRA-0").to_string();
+        if issues.len() + count > 10_000 {
+            return Err(AppError::BadRequest("Jira preview exceeds 10,000 issues".into()));
+        }
+        for item in items {
+            let key = item.get("key").and_then(Value::as_str).filter(|key| !key.is_empty()).ok_or_else(|| AppError::BadRequest("Jira returned an issue without a key".into()))?.to_string();
             let fields = item.get("fields").unwrap_or(&Value::Null);
             let title = fields
                 .get("summary")
                 .and_then(Value::as_str)
                 .unwrap_or("Untitled issue")
                 .to_string();
-            let description = fields
-                .get("description")
-                .and_then(Value::as_str)
-                .map(str::to_string);
+            let description = fields.get("description").and_then(jira_description);
             let status = fields
                 .pointer("/status/name")
                 .and_then(Value::as_str)
@@ -306,13 +330,18 @@ async fn preview_jira(
                 .get("nextPageToken")
                 .and_then(Value::as_str)
                 .map(str::to_string);
+            if let Some(token) = &next_page_token {
+                if !seen_tokens.insert(token.clone()) {
+                    return Err(AppError::BadRequest("Jira repeated a page token".into()));
+                }
+            }
             if next_page_token.is_none() || count == 0 {
                 break;
             }
         } else {
             start_at += count;
-            let total = search_json.get("total").and_then(Value::as_u64).unwrap_or(0) as usize;
-            if count == 0 || start_at >= total {
+            let total = search_json.get("total").and_then(Value::as_u64);
+            if count == 0 || total.is_some_and(|total| start_at as u64 >= total) {
                 break;
             }
         }
@@ -613,7 +642,7 @@ pub async fn import_project(
     let (project_id, final_key, mut issue_counter): (Uuid, String, i32) =
         if let Some(pid) = req.target_project_id {
             let row = sqlx::query_as::<_, (Uuid, String, i32)>(
-                "SELECT id, project_key, issue_counter FROM projects WHERE id = $1 AND workspace_id = $2",
+                "SELECT id, project_key, issue_counter FROM projects WHERE id = $1 AND workspace_id = $2 FOR UPDATE",
             )
             .bind(pid)
             .bind(ws)
@@ -707,9 +736,12 @@ pub async fn import_project(
         .collect();
 
     let mut imported_count = 0usize;
+    let mut updated_count = 0usize;
+    let mut outcomes = Vec::with_capacity(req.issues.len());
     for (idx, item) in req.issues.iter().enumerate() {
         let title = item.title.trim();
         if title.is_empty() {
+            outcomes.push(json!({"row":idx+1,"external_id":item.external_id,"result":"skipped","reason":"Empty title"}));
             continue;
         }
         let ext_id = item.external_id.trim();
@@ -732,6 +764,7 @@ pub async fn import_project(
         };
 
         let issue_id = if let Some(eid) = existing_id {
+            updated_count += 1;
             sqlx::query(
                 r#"
                 UPDATE issues
@@ -809,6 +842,8 @@ pub async fn import_project(
             .map_err(AppError::DatabaseError)?;
         }
 
+        outcomes.push(json!({"row":idx+1,"external_id":item.external_id,"issue_id":issue_id,
+            "result":if existing_id.is_some() { "updated" } else { "created" }}));
         imported_count += 1;
     }
 
@@ -825,6 +860,9 @@ pub async fn import_project(
         project_id,
         project_key: final_key,
         imported_count,
+        updated_count,
+        outcomes,
+        skipped_count: req.issues.len() - imported_count,
     }))
 }
 
@@ -946,6 +984,32 @@ fn extract_issue_refs(text: &str) -> Vec<(String, i32)> {
     refs
 }
 
+#[derive(Serialize, Deserialize, sqlx::FromRow)]
+pub struct GitSettings {
+    opened: Option<Uuid>,
+    merged: Option<Uuid>,
+}
+
+pub async fn git_settings(user: AuthenticatedUser, State(state): State<AppState>, Path((ws, project)): Path<(Uuid, Uuid)>) -> Result<Json<GitSettings>, AppError> {
+    verify_workspace_membership(&state.pool, ws, user.id).await?;
+    let settings = sqlx::query_as("SELECT git_opened_status AS opened, git_merged_status AS merged FROM projects WHERE id=$1 AND workspace_id=$2")
+        .bind(project).bind(ws).fetch_optional(&state.pool).await?
+        .ok_or_else(|| AppError::NotFound("Project".into()))?;
+    Ok(Json(settings))
+}
+
+pub async fn save_git_settings(user: AuthenticatedUser, State(state): State<AppState>, Path((ws, project)): Path<(Uuid, Uuid)>, Json(settings): Json<GitSettings>) -> Result<Json<GitSettings>, AppError> {
+    if !verify_workspace_membership(&state.pool, ws, user.id).await?.can_manage_workspace() {
+        return Err(AppError::Forbidden("Administrator access required".into()));
+    }
+    let updated = sqlx::query("UPDATE projects SET git_opened_status=$3, git_merged_status=$4 WHERE id=$1 AND workspace_id=$2 AND ($3::uuid IS NULL OR EXISTS(SELECT 1 FROM issue_statuses WHERE project_id=$1 AND id=$3)) AND ($4::uuid IS NULL OR EXISTS(SELECT 1 FROM issue_statuses WHERE project_id=$1 AND id=$4))")
+        .bind(project).bind(ws).bind(settings.opened).bind(settings.merged).execute(&state.pool).await?;
+    if updated.rows_affected() == 0 {
+        return Err(AppError::BadRequest("Choose a status from the selected project".into()));
+    }
+    Ok(Json(settings))
+}
+
 pub async fn git_webhook(
     State(state): State<AppState>,
     Path(ws): Path<Uuid>,
@@ -995,6 +1059,7 @@ pub async fn git_webhook(
             .is_some_and(|s| s.eq_ignore_ascii_case("merged"));
     let action = payload
         .get("action")
+        .or_else(|| payload.pointer("/object_attributes/action"))
         .or_else(|| payload.get("state"))
         .and_then(Value::as_str)
         .unwrap_or(if merged { "merged" } else { "updated" });
@@ -1012,6 +1077,7 @@ pub async fn git_webhook(
     let refs = extract_issue_refs(&search_text);
     let mut linked = Vec::new();
 
+    let mut tx = state.pool.begin().await?;
     for (proj_key, issue_num) in refs {
         let found = sqlx::query_as::<_, (Uuid, Uuid, Uuid)>(
             r#"
@@ -1024,7 +1090,7 @@ pub async fn git_webhook(
         .bind(ws)
         .bind(&proj_key)
         .bind(issue_num)
-        .fetch_optional(&state.pool)
+        .fetch_optional(&mut *tx)
         .await
         .map_err(AppError::DatabaseError)?;
 
@@ -1042,31 +1108,31 @@ pub async fn git_webhook(
             .bind(issue_id)
             .bind(reporter_id)
             .bind(comment_body)
-            .execute(&state.pool)
+            .execute(&mut *tx)
             .await
             .map_err(AppError::DatabaseError)?;
 
         let target_cat = if merged {
             Some("Done")
-        } else if action == "opened" {
+        } else if matches!(action, "opened" | "open") {
             Some("InReview")
         } else {
             None
         };
         if let Some(cat) = target_cat {
-            if let Some(status_id) = sqlx::query_scalar::<_, Uuid>(
-                "SELECT id FROM issue_statuses WHERE project_id = $1 AND category = $2 ORDER BY position ASC LIMIT 1",
+            if let Some(status_id) = sqlx::query_scalar::<_, Option<Uuid>>(
+                "SELECT COALESCE(CASE WHEN $2 = 'Done' THEN git_merged_status ELSE git_opened_status END, (SELECT id FROM issue_statuses WHERE project_id=$1 AND category=$2 ORDER BY position LIMIT 1)) FROM projects WHERE id=$1",
             )
             .bind(project_id)
             .bind(cat)
-            .fetch_optional(&state.pool)
+            .fetch_one(&mut *tx)
             .await
             .map_err(AppError::DatabaseError)?
             {
                 sqlx::query("UPDATE issues SET status_id = $1, updated_at = NOW() WHERE id = $2")
                     .bind(status_id)
                     .bind(issue_id)
-                    .execute(&state.pool)
+                    .execute(&mut *tx)
                     .await
                     .map_err(AppError::DatabaseError)?;
             }
@@ -1075,5 +1141,37 @@ pub async fn git_webhook(
         linked.push(format!("{proj_key}-{issue_num}"));
     }
 
+    tx.commit().await?;
     Ok(Json(json!({ "linked_issues": linked })))
+}
+#[cfg(test)]
+mod jira_tests {
+    use super::*;
+    use axum::{extract::Query, routing::get, Router};
+
+    #[tokio::test]
+    async fn cloud_preview_reads_six_pages_and_preserves_description_text() {
+        async fn page(Query(params): Query<HashMap<String, String>>) -> Json<Value> {
+            let page = params.get("nextPageToken").map(|v| v.parse::<usize>().unwrap()).unwrap_or(0);
+            let issues: Vec<_> = (1..=100).map(|index| json!({
+                "key": format!("SRC-{}", page * 100 + index),
+                "fields": {"summary": "Pilot ticket", "description": {
+                    "type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Details"}]}]
+                }}
+            })).collect();
+            Json(json!({"issues":issues, "nextPageToken":(page < 5).then(|| (page + 1).to_string())}))
+        }
+
+        let app = Router::new()
+            .route("/rest/api/3/project/SRC", get(|| async { Json(json!({"name":"Pilot", "key":"SRC"})) }))
+            .route("/rest/api/3/search/jql", get(page));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let result = preview_jira(&reqwest::Client::new(), Some(&base), None, "fixture", "SRC").await.unwrap();
+        server.abort();
+        assert_eq!(result.issues.len(), 600);
+        assert_eq!(result.issues[599].external_id, "SRC-600");
+        assert_eq!(result.issues[599].description.as_deref(), Some("Details"));
+    }
 }

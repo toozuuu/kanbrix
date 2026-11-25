@@ -16,7 +16,6 @@ import type { Values } from "../../types/configuration";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import { Avatar } from "../ui/Avatar";
-import { Badge } from "../ui/Badge";
 import { LabelBadge } from "../ui/LabelBadge";
 import { Issue, Comment, IssueStatus, IssuePriority, IssueType } from "../../types";
 import { api } from "../../lib/api";

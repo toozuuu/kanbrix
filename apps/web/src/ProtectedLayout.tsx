@@ -170,7 +170,7 @@ export default function ProtectedLayout() {
         <Sidebar />
         <main id="workspace-content" tabIndex={-1} className="min-w-0 flex-1 overflow-y-auto p-3 sm:p-6">
           <Suspense fallback={<ProjectSpinner size="sm" message="Loading page…" />}>
-            <Routes>
+            <Routes key={currentWorkspace?.id + "/" + currentProject?.id}>
               <Route
                 path="/dashboard"
                 element={
@@ -221,7 +221,7 @@ export default function ProtectedLayout() {
       )}
 
       {/* Global Issue Detail Modal */}
-      {selectedIssue && (
+      {selectedIssue && selectedIssue.project_id === currentProject?.id && (
         <Suspense fallback={null}>
           <IssueDetailModal
             isOpen={Boolean(selectedIssue)}

@@ -52,7 +52,9 @@ Board filter acceptance checks cover a project with issues assigned to different
 
 ## Phase 7: Future Extensions
 - [ ] WebSocket-based live collaboration and cursor awareness
-- [ ] GitHub / GitLab OAuth and PR commit linking
+- [x] Git webhook issue linking and project-specific pull request transitions
+- [ ] GitHub / GitLab OAuth setup
 - [ ] S3-compatible attachment storage
-- [ ] Advanced velocity and burndown reporting
+- [x] Sprint burndown, lead time and cycle time
+- [ ] Historical sprint velocity comparison
 - [ ] Custom workflow automation triggers

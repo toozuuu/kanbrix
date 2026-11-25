@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
+const WorkloadChart = lazy(() => import("../components/WorkloadChart"));
 const Reports = lazy(() => import("../components/Reports"));
 
 interface DashboardPageProps {
@@ -246,6 +247,7 @@ export function DashboardPage({ onOpenCreateIssue, onSelectIssue }: DashboardPag
             </div>
           </div>
 
+          <Suspense fallback={<ProjectSpinner size="sm" message="Loading workload chart." />}><WorkloadChart key={projectId} project={projectId!} onSelectIssue={onSelectIssue} rows={issueQuery.data?.workload} /></Suspense>
           {/* Priority Focus Grid: Assigned Issues & Upcoming Deadlines */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Assigned to You */}

@@ -40,13 +40,18 @@ export function ExternalSyncPanel({ workspaceId }: { workspaceId: string }) {
   const [projectName, setProjectName] = useState("");
   const [projectKey, setProjectKey] = useState("");
   const [statusMap, setStatusMap] = useState<Record<string, string>>({});
+  const [importError, setImportError] = useState("");
   const [busy, setBusy] = useState(false);
   const [lastResult, setLastResult] = useState<{
     projectKey: string;
     importedCount: number;
+    report: string;
+    updated: number;
+    skipped: number;
   } | null>(null);
 
   function applyPreview(data: SyncPreviewData) {
+    setImportError("");
     setPreview(data);
     setProjectName(data.project_name);
     setProjectKey(data.project_key);
@@ -103,12 +108,17 @@ export function ExternalSyncPanel({ workspaceId }: { workspaceId: string }) {
 
   async function handleImport() {
     if (!preview) return;
+    setImportError("");
+    setLastResult(null);
     setBusy(true);
     try {
       const res = await request<{
         project_id: string;
         project_key: string;
         imported_count: number;
+        outcomes?: {row:number; external_id:string; issue_id?:string; result:string; reason?:string}[];
+        updated_count: number;
+        skipped_count: number;
       }>(`/workspaces/${workspaceId}/sync/import`, {
         method: "POST",
         body: JSON.stringify({
@@ -125,13 +135,20 @@ export function ExternalSyncPanel({ workspaceId }: { workspaceId: string }) {
       setLastResult({
         projectKey: res.project_key,
         importedCount: res.imported_count,
+        report: JSON.stringify({project:res.project_key, source:preview.provider,
+          created:res.imported_count-res.updated_count, updated:res.updated_count, skipped:res.skipped_count,
+          excluded_fields:["attachments","comments","assignees"], outcomes:res.outcomes}, null, 2),
+        updated: res.updated_count,
+        skipped: res.skipped_count,
       });
       toast(
         `Synced ${res.imported_count} tickets into ${res.project_key}`,
         "success",
       );
     } catch (err) {
-      toast(err instanceof Error ? err.message : "Import failed", "error");
+      const reason = err instanceof Error ? err.message : "Import failed";
+      setImportError(`Could not confirm the import of ${preview.issues.length} tickets. ${reason}`);
+      toast(reason, "error");
     } finally {
       setBusy(false);
     }
@@ -365,6 +382,7 @@ export function ExternalSyncPanel({ workspaceId }: { workspaceId: string }) {
             )}
           </div>
 
+          <p>Imports title, description, type, priority, status, labels and source ID. Attachments, comments and assignees are excluded.</p>
           {preview.statuses.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-semibold text-foreground">Status Mapping</p>
@@ -431,9 +449,18 @@ export function ExternalSyncPanel({ workspaceId }: { workspaceId: string }) {
               <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
               <span>Sync {preview.issues.length} Tickets to Kanbrix</span>
             </Button>
+            {importError && <p role="alert">{importError}</p>}
+            {lastResult && <Button size="sm" variant="outline" onClick={() => {
+              const url = URL.createObjectURL(new Blob([lastResult.report], {type:"application/json"}));
+              const anchor = document.createElement("a");
+              anchor.href = url;
+              anchor.download = lastResult.projectKey + "-import-report.json";
+              anchor.click();
+              setTimeout(() => URL.revokeObjectURL(url), 1000);
+            }}>Download import report</Button>}
             {lastResult && (
               <span role="status" className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                Synced {lastResult.importedCount} tickets into {lastResult.projectKey}.
+                {lastResult.projectKey}: {lastResult.importedCount - lastResult.updated} created, {lastResult.updated} updated, {lastResult.skipped} skipped (empty title).
               </span>
             )}
           </div>

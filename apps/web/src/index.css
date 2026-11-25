@@ -557,3 +557,25 @@ hr {
   @keyframes backdrop-appear { from { opacity: 0; } }
   @keyframes notification-arrive { from { opacity: 0; translate: 0 8px; } }
 }
+
+.workflow-editor { container-type: inline-size; }
+.workflow-column-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: end;
+  gap: .5rem;
+}
+.workflow-column-row > label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  gap: .25rem;
+  font-size: var(--type-caption);
+}
+.workflow-column-row input { min-width: 0; }
+@container (min-width: 24rem) {
+  .workflow-column-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container (min-width: 37rem) {
+  .workflow-column-row { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) 5.5rem auto; }
+}

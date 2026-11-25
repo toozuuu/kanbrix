@@ -2,7 +2,7 @@ import {useTranslation} from "react-i18next";
 import { Modal } from "../ui/Modal";
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Kanban, ListTodo, FolderKanban, Users, Settings, ArrowRight, ExternalLink } from "lucide-react";
+import { Search, Kanban, ListTodo, FolderKanban, Users, Settings, ArrowRight } from "lucide-react";
 import { useWorkspace } from "../../context/WorkspaceContext";
 import {api,request} from "../../lib/api";
 import { Issue } from "../../types";
@@ -22,7 +22,7 @@ export function CommandPalette({ isOpen, onClose, onToggle, onSelectIssue }: Com
   const navigate = useNavigate();
   const { currentWorkspace,projects,setCurrentProject } = useWorkspace();
   const inputRef = useRef<HTMLInputElement>(null);
-  const issueIndexRef = useRef<number>(0);
+  const resultsRef = useRef<HTMLDivElement>(null);
   const issueKeyRef = useRef<string | null>(null);
   const navigatingRef = useRef<boolean>(false);
 
@@ -114,51 +114,11 @@ export function CommandPalette({ isOpen, onClose, onToggle, onSelectIssue }: Com
     if (isOpen && inputRef.current) {
       inputRef.current.focus();
       setQuery("");
-      issueIndexRef.current = 0;
+
     }
   }, [isOpen]);
 
   // Handle keyboard navigation within results
-  useEffect(() => {
-    if (!isOpen || issues.length === 0) return;
-
-    const handleNav = async (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        onToggle();
-        setQuery("");
-        return;
-      }
-      if (e.key === "Escape") {
-        onClose();
-        return;
-      }
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        issueIndexRef.current = (issueIndexRef.current + 1) % issues.length;
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        issueIndexRef.current = (issueIndexRef.current - 1 + issues.length) % issues.length;
-      } else if (e.key === "Enter" && issues[issueIndexRef.current]) {
-        const issue = issues[issueIndexRef.current];
-        const project = projects.find(p => p.id === issue.project_id);
-        if (!project) return;
-        setCurrentProject(project);
-        try {
-          const detail = await api.issues.get(issue.id);
-          navigate(`/kanban?project=${project.id}&issue=${issue.id}`);
-          onSelectIssue?.(detail);
-          onClose();
-        } catch {
-          setIssues(prev => prev.filter(i => i.id !== issue.id));
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handleNav);
-    return () => window.removeEventListener("keydown", handleNav);
-  }, [issues, isOpen, projects, setCurrentProject, navigate, onSelectIssue, onClose, onToggle]);
-
   if (!isOpen) return null;
 
   const quickLinks = [
@@ -172,34 +132,48 @@ export function CommandPalette({ isOpen, onClose, onToggle, onSelectIssue }: Com
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={t("Search workspace")} maxWidth="xl">
+        <div onKeyDown={event => {
+          if (!["ArrowDown", "ArrowUp", "Enter"].includes(event.key)) return;
+          const buttons = Array.from(resultsRef.current?.querySelectorAll("button") ?? []);
+          if (!buttons.length) return;
+          if (event.key === "Enter") {
+            if (event.target === inputRef.current) { event.preventDefault(); buttons[0].click(); }
+            return;
+          }
+          event.preventDefault();
+          const index = buttons.indexOf(event.target as HTMLButtonElement);
+          const next = event.key === "ArrowDown" ? index + 1 : index < 0 ? buttons.length - 1 : index - 1;
+          buttons[(next + buttons.length) % buttons.length].focus();
+        }}>
         {/* Search Input */}
-        <div className="flex items-center px-4 border-b border-border">
-          <Search className="h-4 w-4 text-muted-foreground mr-3 shrink-0" />
+        <div className="relative">
+          <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
+            ref={inputRef}
+            aria-label={t("Search workspace")}
             autoFocus
             type="text"
             placeholder={t("Type a command or search issues...")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full h-12 bg-transparent text-sm text-foreground placeholder:text-muted-foreground "
+            className="w-full rounded-lg border border-input pl-10 pr-3 text-sm text-foreground placeholder:text-muted-foreground "
           />
         </div>
 
         {/* Results Body */}
-        <div className="max-h-80 overflow-y-auto p-2">
+        <div ref={resultsRef} className="mt-3 max-h-[min(24rem,50dvh)] overflow-y-auto overscroll-contain pr-1">
           {/* Issue Results */}
           {issues.length > 0 && (
             <div className="mb-2">
               <div className="px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Issues ({issues.length})
               </div>
-              {issues.map((issue, idx) => {
+              {issues.map((issue) => {
                 const project = projects.find(p => p.id === issue.project_id);
                 if (!project) return null;
                 return (
                   <button
                     key={issue.id}
-                    ref={idx === issueIndexRef.current ? undefined : undefined}
                     onClick={async () => {
                       try {
                         const detail = await api.issues.get(issue.id);
@@ -211,15 +185,13 @@ export function CommandPalette({ isOpen, onClose, onToggle, onSelectIssue }: Com
                         setIssues(prev => prev.filter(i => i.id !== issue.id));
                       }
                     }}
-                    className={`flex items-center justify-between w-full p-2 rounded-lg text-left transition-colors group ${
-                      idx === issueIndexRef.current ? 'bg-accent ring-2 ring-primary' : 'hover:bg-accent'
-                    }`}
+                    className="group flex min-h-10 w-full items-center justify-between rounded-lg px-3 text-left hover:bg-accent focus-visible:bg-accent"
                   >
                     <div className="flex items-center gap-2.5 truncate">
                       <span className="font-mono text-xs font-semibold text-primary shrink-0">
                         {issue.identifier}
                       </span>
-                      <span className="text-xs text-foreground truncate font-medium">
+                      <span className="text-sm text-foreground truncate font-medium">
                         {issue.title}
                       </span>
                     </div>
@@ -243,10 +215,11 @@ export function CommandPalette({ isOpen, onClose, onToggle, onSelectIssue }: Com
                     onClose();
                     navigate(link.path);
                   }}
-                  className="flex items-center justify-between w-full p-2 rounded-lg hover:bg-accent text-left transition-colors text-xs font-medium text-foreground"
+                  className="group flex min-h-10 items-center gap-3 w-full px-3 rounded-lg hover:bg-accent focus-visible:bg-accent text-left transition-colors text-sm font-medium text-foreground"
                 >
-                  <span>{link.label}</span>
-                  <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                  <link.icon aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="flex-1">{link.label}</span>
+                  <ArrowRight aria-hidden="true" className="h-4 w-4 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100" />
                 </button>
               ))}
             </div>
@@ -257,6 +230,7 @@ export function CommandPalette({ isOpen, onClose, onToggle, onSelectIssue }: Com
               No issues found matching "{query}"
             </div>
           )}
+        </div>
         </div>
     </Modal>
   );

@@ -57,6 +57,10 @@ pub fn routes() -> Router<AppState> {
             post(sync::git_webhook),
         )
         .route(
+            "/:workspace_id/projects/:project/git-transitions",
+            get(sync::git_settings).put(sync::save_git_settings),
+        )
+        .route(
             "/:workspace_id/sync/preview",
             post(sync::preview),
         )

@@ -147,7 +147,7 @@ export function parseImportFile(
   const typeIdx = col("type", "issue type", "issuetype", "issue_type");
   const prioIdx = col("priority");
   const statusIdx = col("status", "state", "column");
-  const labelsIdx = col("labels", "tags");
+  const labelColumns = headers.flatMap((header, index) => ["labels","tags"].includes(header) ? [index] : []);
 
   const issues: SyncIssueItem[] = rows.slice(1).map((r, idx) => ({
     external_id: keyIdx >= 0 && r[keyIdx] ? r[keyIdx].trim() : `CSV-${idx + 1}`,
@@ -156,10 +156,8 @@ export function parseImportFile(
     issue_type: normalizeType(typeIdx >= 0 ? r[typeIdx] : undefined),
     priority: normalizePriority(prioIdx >= 0 ? r[prioIdx] : undefined),
     status: (statusIdx >= 0 && r[statusIdx]?.trim()) || "Todo",
-    labels:
-      labelsIdx >= 0 && r[labelsIdx]
-        ? r[labelsIdx].split(/[;|]/).map((s) => s.trim()).filter(Boolean)
-        : [],
+    labels: Array.from(new Set(labelColumns.flatMap(index => (r[index] ?? "").split(/[;|]/))
+      .map(label => label.trim()).filter(Boolean))),
   }));
 
   return {

@@ -33,7 +33,7 @@ async fn fetch_issue_labels(issue_id: Uuid, pool: &sqlx::PgPool) -> Result<Vec<L
     .map_err(AppError::DatabaseError)
 }
 
-#[utoipa::path(get,path="/api/v1/projects/{project_id}/issues",params(("project_id"=Uuid,Path,description="project id"),("field_id"=Option<String>,Query,description="field id"),("field_value"=Option<String>,Query,description="field value"),("status_id"=Option<Uuid>,Query,description="status id"),("assignee_id"=Option<Uuid>,Query,description="assignee id"),("type"=Option<String>,Query,description="type"),("priority"=Option<String>,Query,description="priority"),("sprint_id"=Option<Uuid>,Query,description="sprint id"),("label_id"=Option<Uuid>,Query,description="filter by label id"),("label_ids"=Option<String>,Query,description="comma-separated label ids (issues having ALL specified labels)"),("search"=Option<String>,Query,description="search"),("limit"=Option<i64>,Query,description="limit"),("offset"=Option<i64>,Query,description="offset"),("unassigned"=Option<bool>,Query,description="unassigned"),("recently_updated"=Option<bool>,Query,description="Updated within the last 24 hours"),("due_before"=Option<String>,Query,description="due before")),responses((status=200,body=[IssueResponse])))]
+#[utoipa::path(get,path="/api/v1/projects/{project_id}/issues",params(("project_id"=Uuid,Path,description="project id"),("field_id"=Option<String>,Query,description="field id"),("field_value"=Option<String>,Query,description="field value"),("status_id"=Option<Uuid>,Query,description="status id"),("assignee_id"=Option<Uuid>,Query,description="assignee id"),("type"=Option<String>,Query,description="type"),("priority"=Option<String>,Query,description="priority"),("sprint_id"=Option<Uuid>,Query,description="sprint id"),("label_id"=Option<Uuid>,Query,description="filter by label id"),("label_ids"=Option<String>,Query,description="comma-separated label ids (issues having ALL specified labels)"),("search"=Option<String>,Query,description="search"),("limit"=Option<i64>,Query,description="limit"),("offset"=Option<i64>,Query,description="offset"),("unassigned"=Option<bool>,Query,description="unassigned"),("open_only"=Option<bool>,Query,description="Exclude completed issues"),("recently_updated"=Option<bool>,Query,description="Updated within the last 24 hours"),("due_before"=Option<String>,Query,description="due before")),responses((status=200,body=[IssueResponse])))]
 pub async fn list_project_issues(
     auth_user: AuthenticatedUser,
     Path(project_id): Path<Uuid>,
@@ -99,6 +99,7 @@ pub async fn list_project_issues(
           AND ($16::uuid[] IS NULL OR $16 <@ ARRAY(
               SELECT il.label_id FROM issue_labels il WHERE il.issue_id = i.id
           ))
+          AND (NOT $17::boolean OR s.category <> 'Done')
         ORDER BY i.position, i.created_at, i.id
         LIMIT $13 OFFSET $14
         "#,
@@ -118,6 +119,7 @@ pub async fn list_project_issues(
         filters.offset.unwrap_or(0).max(0),
         filters.label_id,
         filters.label_ids.as_deref(),
+        filters.open_only.unwrap_or(false),
     )
     .fetch_all(&state.pool)
     .await
@@ -700,10 +702,12 @@ pub struct IssueCounts {
     assigned: i64,
     in_progress: i64,
     completed: i64,
+    workload: serde_json::Value,
 }
 
-#[utoipa::path(get,path="/api/v1/projects/{project_id}/issue-counts",params(("project_id"=Uuid,Path,description="project id")),responses((status=200,body=IssueCounts)))]
+#[utoipa::path(get,path="/api/v1/projects/{project_id}/issue-counts",params(("project_id"=Uuid,Path,description="project id"),("sprint_id"=Option<Uuid>,Query,description="Limit workload breakdown to this sprint")),responses((status=200,body=IssueCounts)))]
 pub async fn issue_counts(
+    Query(filters): Query<IssueFilterQuery>,
     auth_user: AuthenticatedUser,
     Path(project_id): Path<Uuid>,
     State(state): State<AppState>,
@@ -712,12 +716,23 @@ pub async fn issue_counts(
         "SELECT count(i.id) AS total,
                 count(*) FILTER (WHERE i.assignee_id = $2) AS assigned,
                 count(*) FILTER (WHERE s.category = 'InProgress') AS in_progress,
-                count(*) FILTER (WHERE s.category = 'Done') AS completed
+                count(*) FILTER (WHERE s.category = 'Done') AS completed,
+                (SELECT coalesce(jsonb_agg(bucket ORDER BY bucket.count DESC, bucket.name, bucket.id), '[]'::jsonb)
+                 FROM (
+                     SELECT work.assignee_id AS id, coalesce(u.name, 'Unassigned') AS name, count(*) AS count, coalesce(sum(work.story_points), 0) AS points,
+                            count(*) FILTER (WHERE work.story_points IS NULL) AS unestimated
+                     FROM issues work
+                     JOIN issue_statuses stage ON stage.id = work.status_id
+                     LEFT JOIN users u ON u.id = work.assignee_id
+                     WHERE work.project_id = p.id AND work.archived_at IS NULL AND stage.category <> 'Done'
+                       AND ($3::uuid IS NULL OR work.sprint_id = $3)
+                     GROUP BY work.assignee_id, u.name
+                 ) bucket) AS workload
          FROM projects p JOIN workspace_members m ON m.workspace_id = p.workspace_id AND m.user_id = $2
          LEFT JOIN issues i ON i.project_id = p.id AND i.archived_at IS NULL
          LEFT JOIN issue_statuses s ON s.id = i.status_id
          WHERE p.id = $1 GROUP BY p.id"
-    ).bind(project_id).bind(auth_user.id).fetch_optional(&state.pool).await?
+    ).bind(project_id).bind(auth_user.id).bind(filters.sprint_id).fetch_optional(&state.pool).await?
      .ok_or_else(|| AppError::NotFound("Project not found".into()))?;
     Ok(Json(counts))
 }
