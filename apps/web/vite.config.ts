@@ -3,8 +3,18 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [react()],
+export default defineConfig(({ mode }) => ({
+  base: mode === 'pages' ? new URL(process.env.SITE_URL ?? '').pathname.replace(/\/?$/, '/') : '/',
+  plugins: [
+    react(),
+    mode === 'pages' && {
+      name: 'kanbrix-pages-entry',
+      transformIndexHtml: {
+        order: 'pre',
+        handler: (html) => html.replace('/src/main.tsx', '/src/pages-main.tsx'),
+      },
+    },
+  ],
   optimizeDeps: { include: ["flatpickr", "codemirror", "@codemirror/lang-html", "@codemirror/theme-one-dark"] },
   resolve: {
     alias: {
@@ -44,4 +54,4 @@ export default defineConfig({
       exclude: ['node_modules/', 'src/setupTests.ts'],
     },
   },
-});
+}));

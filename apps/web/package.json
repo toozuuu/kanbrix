@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && node scripts/render-home.mjs",
+    "build:pages": "tsc && vite build --mode pages && node scripts/render-home.mjs --pages",
     "lint": "tsc --noEmit",
     "preview": "vite preview",
     "generate:api": "node scripts/generate-api.mjs",

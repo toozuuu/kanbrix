@@ -4,6 +4,8 @@ Kanbrix is a self-hosted issue tracker for software teams. Run it with Docker Co
 
 Kanbrix is an independent Jira alternative. The [roadmap](docs/ROADMAP.md) tracks compatibility with Jira Cloud company-managed software projects.
 
+[Try the interactive demo](https://toozuuu.github.io/kanbrix/#demo) · [Install with Docker](#run-locally) · [Import from Jira](docs/IMPORT-FROM-JIRA.md)
+
 ## What you can do
 
 - Create tasks, bugs, stories, and epics with priorities, due dates, and comments.

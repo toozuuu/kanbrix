@@ -45,7 +45,7 @@ const FAQS = [
 
 const useBoardLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
-export function LandingPage() {
+export function LandingPage({ marketingOnly = false }: { marketingOnly?: boolean }) {
   useDocumentMeta({
     title: "Kanbrix | Open-Source Jira Alternative",
     description:
@@ -140,15 +140,19 @@ export function LandingPage() {
   }
   const done = positions.filter(stage => stage === 2).length;
   return <div className="launch">
-    <header className="launch-nav"><Link to="/" className="launch-brand"><img src="/kanbrix.svg" width="36" height="36" alt="Kanbrix logo"/>Kanbrix</Link>
-      <nav aria-label="Site"><a href="#features">Features</a><a href="#demo">Live board</a><a href="#faq">FAQ</a><Link to="/login">Sign in <ArrowRight size={15}/></Link></nav>
+    <header className="launch-nav"><Link to="/" className="launch-brand"><img src={import.meta.env.BASE_URL + "kanbrix.svg"} width="36" height="36" alt="Kanbrix logo"/>Kanbrix</Link>
+      <nav aria-label="Site"><a href="#features">Features</a><a href="#demo">Live board</a><a href="#faq">FAQ</a>{marketingOnly
+        ? <a href="https://github.com/toozuuu/kanbrix">GitHub <ArrowRight size={15}/></a>
+        : <Link to="/login">Sign in <ArrowRight size={15}/></Link>}</nav>
     </header>
     <main>
       <section className="launch-hero">
         <div className="launch-copy">
           <h1>Your board.<br/><em>Your rules.</em></h1>
           <p>Plan sprints and track issues on a board your team controls. Kanbrix is open source and runs on your own infrastructure.</p>
-          <div className="launch-actions"><Link to="/register">Create an account <ArrowRight size={17}/></Link><a href="#demo">Explore the board <ArrowDown size={15}/></a></div>
+          <div className="launch-actions">{marketingOnly
+            ? <a href={import.meta.env.BASE_URL + "install/"}>Install with Docker <ArrowRight size={17}/></a>
+            : <Link to="/register">Create an account <ArrowRight size={17}/></Link>}<a href="#demo">Explore the board <ArrowDown size={15}/></a></div>
         </div>
         <div className="release-preview">
           <div className="release-heading"><span><GitBranch size={16}/> Release workflow</span><span className="release-key">{tasks[0].key}</span></div>
@@ -221,8 +225,12 @@ export function LandingPage() {
         </div>
       </section>
     </main>
-    <footer className="launch-footer mx-auto max-w-6xl px-6 py-8 text-sm">
+    <footer className="launch-footer mx-auto flex max-w-6xl flex-wrap gap-x-5 gap-y-2 px-6 py-8 text-sm">
       <a className="underline underline-offset-4" href="https://github.com/toozuuu/kanbrix" target="_blank" rel="noopener noreferrer">Kanbrix source code on GitHub</a>
+      {marketingOnly && <>
+        <a className="underline underline-offset-4" href={import.meta.env.BASE_URL + "install/"}>Install with Docker</a>
+        <a className="underline underline-offset-4" href={import.meta.env.BASE_URL + "import-from-jira/"}>Import from Jira</a>
+      </>}
     </footer>
   </div>;
 }

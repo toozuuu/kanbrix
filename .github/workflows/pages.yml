@@ -1,0 +1,51 @@
+name: Publish Kanbrix website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/pages.yml'
+      - 'apps/web/**'
+      - 'docs/INSTALL-KANBRIX.md'
+      - 'docs/IMPORT-FROM-JIRA.md'
+      - 'docs/screenshots/kanban-board.png'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - uses: actions/configure-pages@v5
+        id: pages
+      - name: Build public website
+        working-directory: apps/web
+        env:
+          SITE_URL: ${{ steps.pages.outputs.base_url }}
+        run: |
+          npm ci
+          npm run build:pages
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/web/dist
+      - uses: actions/deploy-pages@v4
+        id: deployment
