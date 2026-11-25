@@ -32,6 +32,7 @@ pub struct ProjectDeadlines {
 
 #[utoipa::path(
     get, path = "/api/v1/projects/{project_id}/deadlines",
+    operation_id = "list_project_deadlines",
     params(
         ("project_id" = Uuid, Path, description = "Project ID"),
         ("today" = NaiveDate, Query, description = "Current calendar date. Returns overdue items and items due within the seven-day window starting on this date."),

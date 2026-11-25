@@ -143,6 +143,19 @@ mod http_tests {
     use super::*;
     use axum::{body::Body, http::Request};
     use tower::ServiceExt;
+    #[test]
+    fn openapi_operation_ids_are_unique() {
+        let spec = serde_json::to_value(ApiDoc::openapi()).unwrap();
+        let mut operation_ids = std::collections::HashSet::new();
+        for path in spec["paths"].as_object().unwrap().values() {
+            for operation in path.as_object().unwrap().values() {
+                if let Some(id) = operation["operationId"].as_str() {
+                    assert!(operation_ids.insert(id), "Duplicate operation ID: {id}");
+                }
+            }
+        }
+    }
+
     fn router() -> Router {
         let pool = sqlx::postgres::PgPoolOptions::new()
             .connect_lazy("postgres://localhost/kanbrix_test")
