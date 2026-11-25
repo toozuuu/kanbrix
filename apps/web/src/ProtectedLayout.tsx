@@ -29,6 +29,8 @@ const KeyboardShortcuts = lazy(() => import("./components/layout/KeyboardShortcu
 const NewIssueModal = lazy(() => import("./components/kanban/NewIssueModal").then(m => ({ default: m.NewIssueModal })));
 const IssueDetailModal = lazy(() => import("./components/issues/IssueDetailModal").then(m => ({ default: m.IssueDetailModal })));
 
+type IssueSelection = { issue: Issue; project?: Project; workspaceId: string };
+
 function accentStyle(hex:string):React.CSSProperties {
   const [r,g,b]=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255);
   const max=Math.max(r,g,b), min=Math.min(r,g,b), delta=max-min, light=(max+min)/2;
@@ -48,8 +50,7 @@ export default function ProtectedLayout() {
   const [initialStatusId, setInitialStatusId] = useState<string | undefined>();
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isKeyboardShortcutsOpen, setIsKeyboardShortcutsOpen] = useState(false);
-  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
-  const [selectedIssueProject, setSelectedIssueProject] = useState<Project | null>(null);
+  const [issueSelection, setIssueSelection] = useState<IssueSelection | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
     window.innerWidth < 768 || localStorage.getItem("kanbrix-nav-compact") === "true");
@@ -76,18 +77,32 @@ export default function ProtectedLayout() {
     ? currentWorkspace?.id
     : `${currentWorkspace?.id}/${currentProject?.id}`;
 
-  const canOpenWorkspaceIssue = isMyWorkPage && selectedIssueProject?.workspace_id === currentWorkspace?.id;
-  const detailProject = selectedIssue?.project_id === currentProject?.id
-    ? currentProject
-    : canOpenWorkspaceIssue && selectedIssue?.project_id === selectedIssueProject?.id ? selectedIssueProject : null;
+  const workspaceId = currentWorkspace?.id;
+  let detailProject: Project | null = null;
+  if (issueSelection && issueSelection.workspaceId === workspaceId) {
+    if (currentProject?.id === issueSelection.issue.project_id) {
+      detailProject = currentProject;
+    } else if (isMyWorkPage && issueSelection.project?.id === issueSelection.issue.project_id) {
+      detailProject = issueSelection.project;
+    }
+  }
+  const selectedIssue = detailProject ? issueSelection?.issue : undefined;
 
   useEffect(() => {
-    setSelectedIssue(previous => (
-      previous?.project_id === currentProject?.id ||
-      (canOpenWorkspaceIssue && previous?.project_id === selectedIssueProject?.id)
-    ) ? previous : null);
-  }, [currentProject?.id, currentWorkspace?.id, canOpenWorkspaceIssue, selectedIssueProject?.id]);
+    if (issueSelection && !detailProject) {
+      setIssueSelection(current => current === issueSelection ? null : current);
+    }
+  }, [issueSelection, detailProject]);
   useEffect(() => setIsCreateIssueOpen(false), [currentProject?.id, currentWorkspace?.id]);
+
+  function openIssueDetails(issue: Issue, project?: Project) {
+    if (!workspaceId || (project && project.workspace_id !== workspaceId)) return;
+    setIssueSelection({ issue, project, workspaceId });
+  }
+
+  function updateSelectedIssue(issue: Issue) {
+    setIssueSelection(current => current?.issue.id === issue.id ? { ...current, issue } : current);
+  }
 
   // Keyboard shortcuts handler (Jira-like hotkeys)
   useEffect(()=>{
@@ -137,7 +152,7 @@ export default function ProtectedLayout() {
       if(e.key==="l" && selectedIssue && !isCommandPaletteOpen){
         e.preventDefault();
         void api.issues.update(selectedIssue.id,{assignee_id:user.id}).then(updated=>{
-          setSelectedIssue(updated);
+          updateSelectedIssue(updated);
           refreshIssueViews();
           toast("Issue assigned to you","success");
         }).catch(()=>toast("Could not assign issue","error"));
@@ -204,7 +219,7 @@ export default function ProtectedLayout() {
                 element={
                   <DashboardPage
                     onOpenCreateIssue={() => handleOpenCreateIssue()}
-                    onSelectIssue={(issue) => setSelectedIssue(issue)}
+                    onSelectIssue={openIssueDetails}
                   />
                 }
               />
@@ -212,7 +227,7 @@ export default function ProtectedLayout() {
                 path="/kanban"
                 element={
                   <KanbanPage
-                    onIssueClick={(issue) => setSelectedIssue(issue)}
+                    onIssueClick={openIssueDetails}
                     onAddIssueToStatus={(statusId) => handleOpenCreateIssue(statusId)}
                   />
                 }
@@ -221,16 +236,13 @@ export default function ProtectedLayout() {
                 path="/backlog"
                 element={
                   workflow.data?.sprints===false ? <Navigate to="/kanban" replace/> : <BacklogPage key={refreshKey}
-                    onIssueClick={(issue) => setSelectedIssue(issue)}
+                    onIssueClick={openIssueDetails}
                     onOpenNewIssue={() => handleOpenCreateIssue()}
                   />
                 }
               />
               <Route path="/projects" element={<ProjectsPage />} />
-              <Route path="/my-work" element={<MyWorkPage onSelectIssue={(issue, project) => {
-                setSelectedIssueProject(project);
-                setSelectedIssue(issue);
-              }} />} />
+              <Route path="/my-work" element={<MyWorkPage onSelectIssue={openIssueDetails} />} />
               <Route path="/members" element={<MembersPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
@@ -257,16 +269,17 @@ export default function ProtectedLayout() {
         <Suspense fallback={null}>
           <IssueProjectScope project={detailProject}>
           <IssueDetailModal
+            key={selectedIssue.id}
             isOpen={Boolean(selectedIssue)}
-            onClose={() => setSelectedIssue(null)}
+            onClose={() => setIssueSelection(null)}
             issue={selectedIssue}
             statuses={detailProject.id === currentProject?.id ? statuses : detailProject.statuses ?? []}
             onIssueUpdated={(updated) => {
-              setSelectedIssue(current => current?.id === updated.id ? updated : current);
+              updateSelectedIssue(updated);
               refreshIssueViews();
             }}
             onIssueDeleted={() => {
-              setSelectedIssue(null);
+              setIssueSelection(null);
               refreshIssueViews();
             }}
           />
@@ -280,7 +293,7 @@ export default function ProtectedLayout() {
           onToggle={() => setIsCommandPaletteOpen(open => !open)}
           isOpen={isCommandPaletteOpen}
           onClose={() => setIsCommandPaletteOpen(false)}
-          onSelectIssue={(issue) => setSelectedIssue(issue)}
+          onSelectIssue={openIssueDetails}
         />
       </Suspense>
 
