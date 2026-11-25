@@ -361,7 +361,7 @@ export function DashboardPage({ onOpenCreateIssue, onSelectIssue }: DashboardPag
                         <button
                           type="button"
                           onClick={() => openIssue.mutate(issue.id, {
-                            onSuccess: onSelectIssue,
+                            onSuccess: selected => onSelectIssue(selected),
                             onError: () => toast("Could not open the issue.", "error"),
                           })}
                           disabled={openIssue.isPending && openIssue.variables === issue.id}
