@@ -16,7 +16,7 @@ pub struct DeadlineFilters {
     only_mine: bool,
 }
 
-#[derive(Deserialize, Serialize, ToSchema)]
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct ProjectDeadline {
     id: Uuid,
     identifier: String,
