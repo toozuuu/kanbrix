@@ -19,61 +19,61 @@ pub fn routes() -> Router<AppState> {
             get(handlers::list_workspaces).post(handlers::create_workspace),
         )
         .route(
-            "/:workspace_id",
+            "/{workspace_id}",
             get(handlers::get_workspace)
                 .patch(handlers::update_workspace)
                 .delete(handlers::delete_workspace),
         )
         .route(
-            "/:workspace_id/configuration",
+            "/{workspace_id}/configuration",
             get(configuration::read).put(configuration::publish),
         )
         .route(
-            "/:workspace_id/configuration/history",
+            "/{workspace_id}/configuration/history",
             get(configuration::history),
         )
         .route(
-            "/:workspace_id/configuration/validate",
+            "/{workspace_id}/configuration/validate",
             post(configuration::validate),
         )
         .route(
-            "/:workspace_id/integrations",
+            "/{workspace_id}/integrations",
             get(integrations::read).put(integrations::save),
         )
         .route(
-            "/:workspace_id/integrations/credential",
+            "/{workspace_id}/integrations/credential",
             post(integrations::token),
         )
         .route(
-            "/:workspace_id/integrations/events",
+            "/{workspace_id}/integrations/events",
             get(integrations::feed),
         )
         .route(
-            "/:workspace_id/integrations/events/:id/retry",
+            "/{workspace_id}/integrations/events/{id}/retry",
             post(integrations::retry),
         )
         .route(
-            "/:workspace_id/integrations/git-webhook",
+            "/{workspace_id}/integrations/git-webhook",
             post(sync::git_webhook),
         )
         .route(
-            "/:workspace_id/projects/:project/git-transitions",
+            "/{workspace_id}/projects/{project}/git-transitions",
             get(sync::git_settings).put(sync::save_git_settings),
         )
-        .route("/:workspace_id/sync/preview", post(sync::preview))
-        .route("/:workspace_id/sync/import", post(sync::import_project))
-        .route("/:workspace_id/sync/seed-demo", post(sync::seed_demo))
-        .route("/:workspace_id/email", get(email::read).put(email::save))
-        .route("/:workspace_id/email/test", post(email::send_test))
+        .route("/{workspace_id}/sync/preview", post(sync::preview))
+        .route("/{workspace_id}/sync/import", post(sync::import_project))
+        .route("/{workspace_id}/sync/seed-demo", post(sync::seed_demo))
+        .route("/{workspace_id}/email", get(email::read).put(email::save))
+        .route("/{workspace_id}/email/test", post(email::send_test))
         .route(
-            "/:workspace_id/configuration/preview",
+            "/{workspace_id}/configuration/preview",
             post(configuration::preview),
         )
         .route(
-            "/:workspace_id/configuration/export",
+            "/{workspace_id}/configuration/export",
             get(configuration::export),
         )
-        .route("/:workspace_id/search", get(search::search))
-        .route("/:workspace_id/members", get(handlers::list_members))
-        .route("/:workspace_id/invitations", post(handlers::invite_member))
+        .route("/{workspace_id}/search", get(search::search))
+        .route("/{workspace_id}/members", get(handlers::list_members))
+        .route("/{workspace_id}/invitations", post(handlers::invite_member))
 }

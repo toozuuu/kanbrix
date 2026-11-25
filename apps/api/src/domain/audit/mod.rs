@@ -6,7 +6,7 @@ use axum::{routing::get, Router};
 
 pub fn routes() -> Router<AppState> {
     Router::new().route(
-        "/:workspace_id/activity",
+        "/{workspace_id}/activity",
         get(handlers::list_workspace_activity),
     )
 }

@@ -4,13 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-axum = { version = "0.7", features = ["macros", "multipart", "ws"] }
+axum = { version = "0.8", features = ["macros", "multipart", "ws"] }
 tokio = { version = "1.38", features = ["full"] }
 tower = { version = "0.4", features = ["util"] }
 tower-http = { version = "0.5", features = ["cors", "trace", "fs", "limit"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono", "json", "migrate"] }
+sqlx = { version = "0.9.1", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-webpki", "postgres", "uuid", "chrono", "json", "macros", "migrate"] }
 uuid = { version = "1.8", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 time = { version = "0.3", features = ["formatting", "parsing", "serde"] }
@@ -23,9 +23,9 @@ dotenvy = "0.15"
 thiserror = "1.0"
 sha2 = "0.10"
 utoipa = { version = "6", features = ["chrono", "uuid", "axum_extras"] }
-utoipa-swagger-ui = { version = "10", features = ["axum"] }
-utoipa-axum = { version = "0.3" }
-axum-extra = { version = "0.9", features = ["cookie"] }
+utoipa-swagger-ui = { version = "10", default-features = false, features = ["axum", "vendored"] }
+axum-extra = { version = "0.10", features = ["cookie"] }
+validator = { version = "0.18", features = ["derive"] }
 
 reqwest = { version = "0.12", features = ["json", "cookies"] }
 redis = { version = "0.27", features = ["tokio-comp"] }

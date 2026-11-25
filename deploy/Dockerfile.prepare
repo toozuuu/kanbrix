@@ -1,14 +1,14 @@
 # Dockerfile for running `cargo sqlx prepare`
 # This generates the .sqlx/ offline query cache directory.
 # Run via: docker compose -f docker-compose.prepare.yml run --rm sqlx-prepare
-FROM rust:1.91.1-alpine
+FROM rust:1.94.0-alpine
 
 RUN apk add --no-cache curl musl-dev pkgconfig openssl-dev openssl-libs-static
 
-# Install sqlx-cli matching our sqlx dependency version (0.7.x)
+# Install the SQLx CLI at the same version as the application dependency.
 # --locked ensures reproducible install
 RUN cargo install sqlx-cli \
-    --version '^0.7' \
+    --version 0.9.1 \
     --no-default-features \
     --features rustls,postgres \
     --locked

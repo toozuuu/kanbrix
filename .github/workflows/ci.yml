@@ -36,13 +36,13 @@ jobs:
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.91.1
+          toolchain: 1.94.0
           components: clippy, rustfmt
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: apps/api
+          workspaces: .
 
       - name: Check Formatting
         working-directory: apps/api
@@ -56,7 +56,7 @@ jobs:
 
       - name: Run Clippy
         working-directory: apps/api
-        run: cargo clippy -- -D warnings
+        run: cargo clippy --locked -- -D warnings
 
       - name: Verify database constraints and compare representative query plans
         run: |
@@ -73,7 +73,7 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:postgrespassword@localhost:5432/rusttrack_test
           APP_ENV: test
-        run: cargo test --verbose
+        run: cargo test --locked --verbose
 
   frontend:
     name: Frontend Lint & Build
