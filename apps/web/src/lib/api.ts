@@ -154,6 +154,13 @@ export const api = {
 
   // Issues
   issues: {
+    deadlines: (projectId: string, today: string, onlyMine: boolean) => {
+      const params = new URLSearchParams({ today, only_mine: String(onlyMine) });
+      return request<{
+        items: Pick<Issue, "id" | "identifier" | "title" | "due_date">[];
+        overdue_count: number;
+      }>(`/projects/${projectId}/deadlines?${params}`);
+    },
     counts: (projectId: string, sprint?: string) =>
       request<{ total: number; assigned: number; in_progress: number; completed: number; workload: {id: string | null; name: string; count: number; points: number; unestimated: number}[] }>(`/projects/${projectId}/issue-counts${sprint ? "?sprint_id=" + encodeURIComponent(sprint) : ""}`),
     list: (

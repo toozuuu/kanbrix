@@ -64,4 +64,34 @@ try{
   const [imported]=await user.json(`/workspaces/${ws}/search?q=PILOT-1`);
   assert.equal((await user.json("/issues/"+imported.id)).status_id,rules.merged);
   await user.json(prefix);await user.json(`/workspaces/${ws}/configuration`);
+
+  const assignee = (await user.json("/auth/me")).id;
+  const todo = project.statuses.find(status => status.category === "Todo").id;
+  const done = project.statuses.find(status => status.category === "Done").id;
+  for (let index = 0; index < 21; index++) {
+    await user.json(prefix + "/issues", {
+      title: "Assigned deadline " + index, status_id: todo, assignee_id: assignee,
+      due_date: "2026-02-03T00:00:00Z",
+    });
+  }
+  const oldest = await user.json(prefix + "/issues", {
+    title: "Oldest deadline added last", status_id: todo, due_date: "2026-02-01T00:00:00Z",
+  });
+  await user.json(prefix + "/issues", {
+    title: "Completed deadline", status_id: done, assignee_id: assignee,
+    due_date: "2026-01-01T00:00:00Z",
+  });
+  await user.json(prefix + "/issues", {
+    title: "Due today", status_id: todo, assignee_id: assignee, due_date: "2026-02-04T00:00:00Z",
+  });
+  const deadlines = prefix + "/deadlines?today=2026-02-04";
+  const all = await user.json(deadlines);
+  assert.equal(all.overdue_count, 22);
+  assert.equal(all.items.length, 20);
+  assert.equal(all.items[0].id, oldest.id);
+  const mine = await user.json(deadlines + "&only_mine=true");
+  assert.equal(mine.overdue_count, 21);
+  assert.equal(mine.items.length, 20);
+  assert.ok(mine.items.every(item => item.title.startsWith("Assigned deadline")));
+  assert.equal((await outsider.call(deadlines)).status, 404);
 }finally{socket.close();}
