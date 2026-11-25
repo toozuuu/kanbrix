@@ -61,7 +61,10 @@ export default function ProtectedLayout() {
   const {toast}=useToast();
   const navigate = useNavigate();
   const isProjectsPage = useMatch("/projects") !== null;
-  const routesKey = isProjectsPage ? currentWorkspace?.id : `${currentWorkspace?.id}/${currentProject?.id}`;
+  const isSettingsPage = useMatch("/settings") !== null;
+  const routesKey = isProjectsPage || isSettingsPage
+    ? currentWorkspace?.id
+    : `${currentWorkspace?.id}/${currentProject?.id}`;
 
   useEffect(()=>{setSelectedIssue(prev=>prev?.project_id===currentProject?.id?prev:null);setIsCreateIssueOpen(false);},[currentProject?.id,currentWorkspace?.id]);
 
@@ -170,7 +173,7 @@ export default function ProtectedLayout() {
         />
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <Sidebar />
-        <main id="workspace-content" tabIndex={-1} className="min-w-0 flex-1 overflow-y-auto p-3 sm:p-6">
+        <main id="workspace-content" tabIndex={-1} className={`min-w-0 flex-1 overflow-y-auto p-3 sm:p-6${isSettingsPage ? " [scrollbar-gutter:stable]" : ""}`}>
           <Suspense fallback={<ProjectSpinner size="sm" message="Loading page…" />}>
             <Routes key={routesKey}>
               <Route
@@ -202,7 +205,7 @@ export default function ProtectedLayout() {
               />
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/members" element={<MembersPage />} />
-              <Route path="/settings" element={<SettingsPage key={currentWorkspace?.id} />} />
+              <Route path="/settings" element={<SettingsPage />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </Suspense>

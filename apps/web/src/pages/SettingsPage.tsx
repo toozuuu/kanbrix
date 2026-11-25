@@ -161,12 +161,12 @@ export function SettingsPage() {
         <nav aria-label="Settings sections" className="flex flex-wrap gap-1 border-b border-border pb-3 xl:sticky xl:top-0 xl:flex-col xl:self-start xl:border-b-0 xl:border-r xl:pr-3">
           {available.map(({id,label,icon: Icon}) => (
             <Link key={id} to={{search: "?view=" + id}} aria-current={active === id ? "page" : undefined}
-              className="flex min-h-11 items-center gap-2 rounded-md px-3 text-sm text-muted-foreground transition-colors hover:bg-secondary aria-[current=page]:bg-accent aria-[current=page]:font-semibold aria-[current=page]:text-accent-foreground">
+              className="flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary aria-[current=page]:bg-accent aria-[current=page]:text-accent-foreground">
               <Icon size={16} aria-hidden="true"/>{label}
             </Link>
           ))}
         </nav>
-        <div className="settings-panels min-w-0">
+        <div className="min-w-0">
           <section hidden={active !== "workspace"} aria-labelledby="workspace-settings-title" className="rounded-2xl border border-border/75 bg-card p-5 sm:p-6 shadow-[var(--shadow-sm)]">
             <h2 id="workspace-settings-title" className="mb-5 text-lg font-semibold">Workspace profile</h2>
             {currentWorkspace ? <form onSubmit={handleUpdateWorkspace} className="space-y-5">

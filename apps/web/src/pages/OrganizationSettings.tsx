@@ -2,8 +2,8 @@ import { ArrowDown, ArrowUp } from "lucide-react";
 import { ProjectSpinner } from "../components/ui/ProjectSpinner";
 import { SelectBox } from "../components/ui/SelectBox";
 import {useTranslation} from "react-i18next";
-import {useLocation} from "react-router-dom";
-import { useState,useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, request } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
@@ -89,9 +89,16 @@ function Editor({
   const [affected, impact] = useState<number>();
   const [preview, setPreview] = useState(false);
   const [busy, setBusy] = useState(false);
-  const {search}=useLocation();
-  const [tab,setTab]=useState("Branding");
-  useEffect(()=>{const section=new URLSearchParams(search).get("section")??"Branding";setTab(["Branding","Calendar","Issue forms","Templates","Permissions",...(admin?["History"]:[])].includes(section)?section:"Branding");},[search,admin]);
+  const [params, setParams] = useSearchParams();
+  const tabs = [
+    "Branding",
+    "Calendar",
+    "Issue forms",
+    "Templates",
+    "Permissions",
+    ...(admin ? ["History"] : []),
+  ];
+  const tab = tabs.find((section) => section === params.get("section")) ?? "Branding";
   const { user } = useAuth();
   const workflow = useWorkflow().data;
   const project = useWorkspace().currentProject;
@@ -165,14 +172,6 @@ function Editor({
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  const tabs = [
-    "Branding",
-    "Calendar",
-    "Issue forms",
-    "Templates",
-    "Permissions",
-    ...(admin ? ["History"] : []),
-  ];
   return (
     <section className="rounded-2xl border border-border/75 bg-card p-5 sm:p-6 space-y-5 shadow-[var(--shadow-sm)]">
       <div>
@@ -184,10 +183,18 @@ function Editor({
       <nav aria-label="Configuration sections" className="flex flex-wrap gap-2">
         {tabs.map((tabName) => (
           <Button
+            type="button"
             size="sm"
             variant={tabName === tab ? "default" : "secondary"}
+            className={tabName === tab ? "border border-transparent" : undefined}
+            aria-current={tabName === tab ? "page" : undefined}
             key={tabName}
-            onClick={() => setTab(tabName)}
+            onClick={() => {
+              if (tabName === tab) return;
+              const next = new URLSearchParams(params);
+              next.set("section", tabName);
+              setParams(next);
+            }}
           >
             {t(tabName)}
           </Button>

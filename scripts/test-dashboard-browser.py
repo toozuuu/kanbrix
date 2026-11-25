@@ -16,6 +16,40 @@ def account(context, name):
     return email, context.request.get("/api/v1/auth/me").json()
 
 
+def check_settings_tabs(page):
+    geometry = """items => {
+        const nav = items[0].closest('nav').getBoundingClientRect();
+        return [nav.width, items.map(item => {
+            const {x, y, width} = item.getBoundingClientRect();
+            return [x - nav.x, y - nav.y, width].map(Math.round);
+        })];
+    }"""
+    page.goto("/settings")
+    settings = page.get_by_role("navigation", name="Settings sections")
+    expect(settings.get_by_role("link", name="Integrations")).to_be_visible()
+    links = settings.get_by_role("link")
+    positions = links.evaluate_all(geometry)
+    settings.get_by_role("link", name="System information").click()
+    panel = page.get_by_role("heading", name="System information").locator("..")
+    expect(panel).to_be_visible()
+    assert panel.evaluate("el => getComputedStyle(el).animationName") == "none"
+    assert links.evaluate_all(geometry) == positions
+
+    settings.get_by_role("link", name="Organization").click()
+    sections = page.get_by_role("navigation", name="Configuration sections")
+    calendar = sections.get_by_role("button", name="Calendar")
+    expect(calendar).to_be_visible()
+    buttons = sections.get_by_role("button")
+    positions = buttons.evaluate_all(geometry)
+    calendar.click()
+    sections.get_by_role("button", name="History").click()
+    expect(page.get_by_role("heading", name="Revision history")).to_be_visible()
+    expect(page).to_have_url(ORIGIN + "/settings?view=organization&section=History")
+    assert buttons.evaluate_all(geometry) == positions
+    page.go_back()
+    expect(calendar).to_have_attribute("aria-current", "page")
+
+
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch()
     owner = browser.new_context(base_url=ORIGIN)
@@ -80,6 +114,9 @@ with sync_playwright() as playwright:
     assert update.value.ok
     page.keyboard.press("Escape")
     expect(chart.get_by_text("1 (50%)", exact=True)).to_have_count(2)
+    for width in (390, 1280):
+        page.set_viewport_size({"width": width, "height": 800})
+        check_settings_tabs(page)
     for scheme in ("light", "dark"):
         page.emulate_media(color_scheme=scheme)
         for width in (390, 1280):

@@ -1,12 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter } from "react-router-dom";
 import { expect, it, vi } from "vitest";
 import { OrganizationSettings } from "./OrganizationSettings";
 import { api, request } from "../lib/api";
 
-vi.mock("react-router-dom", () => ({
-  useLocation: () => ({ search: "?section=Templates" }),
-}));
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (k: string) => k }),
 }));
@@ -82,7 +80,9 @@ vi.mock("../context/useConfiguration", () => ({
 it("reorders organization templates and template columns and publishes the new order", async () => {
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <OrganizationSettings />
+      <MemoryRouter initialEntries={["/settings?section=Templates"]}>
+        <OrganizationSettings />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 
