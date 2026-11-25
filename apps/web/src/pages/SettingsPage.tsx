@@ -480,7 +480,7 @@ export function SettingsPage() {
           <section hidden={active !== "system"} className="rounded-2xl border border-border/75 bg-card p-5 sm:p-6 shadow-[var(--shadow-sm)]">
             <h2 className="mb-3 text-lg font-semibold">System information</h2>
             <dl className="divide-y divide-border text-sm">
-              {[["Application version","0.1.0"],["Backend runtime","Rust (Axum + Tokio + SQLx)"],["Frontend stack","React 18 + Vite + Tailwind CSS"],["License","GNU AGPL-3.0"]].map(([label,value]) =>
+              {[["Application version","0.1.0"],["Backend runtime","Rust (Axum + Tokio + SQLx)"],["Frontend stack","React 18 + Vite + Tailwind CSS"],["License","MIT"]].map(([label,value]) =>
                 <div key={label} className="grid gap-1 py-3 sm:grid-cols-2"><dt className="text-muted-foreground">{label}</dt><dd>{value}</dd></div>
               )}
             </dl>

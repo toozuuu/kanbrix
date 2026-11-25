@@ -106,5 +106,3 @@ npm run build
 ## License
 
 Kanbrix is available under the [MIT License](LICENSE).
-
-> **Note:** This project is provided for personal and organizational use. Feel free to clone, modify, and customize it for your own requirements, but please give credit to the original owners when using or distributing this software.

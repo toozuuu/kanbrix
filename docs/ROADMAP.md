@@ -1,16 +1,16 @@
-# RustTrack Roadmap
+# Kanbrix Roadmap
 
 ## Jira Cloud company-managed software project compatibility
 
-Kanbrix uses the documented behavior of Jira Cloud company-managed software projects as its compatibility target. The implementation uses Kanbrix's interface and API and is covered by the repository's AGPL license.
+Kanbrix uses the documented behavior of Jira Cloud company-managed software projects as its compatibility target. Kanbrix is available under the [MIT License](../LICENSE).
 
 | Area | Kanbrix coverage | Remaining compatibility work |
 | --- | --- | --- |
-| Board filters | Current assignee and the rolling 24-hour update filter | Saved filters, board-level JQL, sub-filters, and administrator-managed custom filters |
+| Board filters | Project saved filters, current assignee, and the rolling 24-hour update filter | Board-level JQL, sub-filters, and administrator-managed custom filters |
 | Board configuration | Workflow columns and issue ordering | Multi-project boards, swimlanes, column constraints, and card layout settings |
 | Planning | Backlog and sprint lifecycle | Parallel sprint behavior, versions and releases, and epic planning |
 | Administration | Workspace roles, configurable issue fields, and project workflows | Shared schemes, granular project permissions, workflow conditions, validators, and post-functions |
-| Reporting and integrations | Project reports and API | Report comparisons against Jira fixtures, automation rules, Jira import, and integration compatibility |
+| Reporting and integrations | Project reports, API, Jira import, and Git webhook transitions | Report comparisons against Jira fixtures and configurable automation rules |
 
 Board filter acceptance checks cover a project with issues assigned to different users, timestamps on both sides of the rolling 24-hour cutoff, and enough issues to span multiple pages. The update filter must apply before pagination and work together with the existing assignee filter.
 
@@ -19,7 +19,7 @@ Board filter acceptance checks cover a project with issues assigned to different
 ## Phase 1: Foundation (Completed)
 - [x] Monorepo structure, Docker Compose, CI configuration
 - [x] Rust Axum backend with structured logging, health checks, error models
-- [x] React + Vite + TypeScript frontend with Tailwind CSS and Radix UI primitives
+- [x] React + Vite + TypeScript frontend with Tailwind CSS
 - [x] Comprehensive documentation suite
 
 ## Phase 2: Authentication & Workspaces (MVP)
@@ -38,6 +38,7 @@ Board filter acceptance checks cover a project with issues assigned to different
 - [x] Drag-and-drop issue cards with dnd-kit
 - [x] Persistent server-side ordering
 - [x] Fast filtering by assignee, priority, type, and search keyword
+- [x] Project saved filters and WebSocket board refreshes
 
 ## Phase 5: Agile Sprints & Backlog (MVP)
 - [x] Sprint creation, duration planning, and sprint goal definition
@@ -51,7 +52,7 @@ Board filter acceptance checks cover a project with issues assigned to different
 - [x] Docker multi-stage builds and Nginx deployment templates
 
 ## Phase 7: Future Extensions
-- [ ] WebSocket-based live collaboration and cursor awareness
+- [ ] Live cursor and presence indicators
 - [x] Git webhook issue linking and project-specific pull request transitions
 - [ ] GitHub / GitLab OAuth setup
 - [ ] S3-compatible attachment storage
