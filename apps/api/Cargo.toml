@@ -25,7 +25,7 @@ sha2 = "0.10"
 utoipa = { version = "6", features = ["chrono", "uuid", "axum_extras"] }
 utoipa-swagger-ui = { version = "10", default-features = false, features = ["axum", "vendored"] }
 axum-extra = { version = "0.10", features = ["cookie"] }
-validator = { version = "0.18", features = ["derive"] }
+validator = { version = "0.21", features = ["derive"] }
 
 reqwest = { version = "0.12", features = ["json", "cookies"] }
 redis = { version = "0.27", features = ["tokio-comp"] }
