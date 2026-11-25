@@ -521,7 +521,7 @@ hr {
     --motion-ease: cubic-bezier(.2,.75,.25,1);
   }
 
-  #workspace-content > *, .auth-layout, .settings-panels > :not([hidden]),
+  #workspace-content > *, .auth-layout,
   .motion-report, .motion-feedback, .motion-issue-row {
     animation: content-arrive var(--motion-enter) var(--motion-ease);
   }
