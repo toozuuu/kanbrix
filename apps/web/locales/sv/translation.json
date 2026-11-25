@@ -3,6 +3,8 @@
     "name": "Kanbrix",
     "loading": "Laddar Kanbrix..."
   },
+  "Show password": "Visa lösenord",
+  "Hide password": "Dölj lösenord",
   "navigation": {
     "dashboard": "Översikt",
     "board": "Tavla",

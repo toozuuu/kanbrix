@@ -71,7 +71,7 @@ vi.mock("../lib/api", () => ({
   },
 }));
 
-it("renders KPI cards, overdue deadlines, assigned issues, and triggers callbacks", async () => {
+it("renders the project overview, overdue deadlines, assigned issues, and triggers callbacks", async () => {
   const onOpenCreateIssue = vi.fn();
   const onSelectIssue = vi.fn();
 
@@ -86,9 +86,8 @@ it("renders KPI cards, overdue deadlines, assigned issues, and triggers callback
     </MemoryRouter>,
   );
 
-  expect(screen.getByRole("heading", { name: "Welcome back, Ada" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Core API", level: 1 })).toBeInTheDocument();
   expect(screen.getByText("Acme Corp")).toBeInTheDocument();
-  expect(screen.getByText("Core API")).toBeInTheDocument();
 
   await waitFor(() => expect(screen.getByText("50%")).toBeInTheDocument());
   expect(screen.getByRole("progressbar", { name: "Completion progress" })).toHaveAttribute(
@@ -96,7 +95,8 @@ it("renders KPI cards, overdue deadlines, assigned issues, and triggers callback
     "50",
   );
   expect(await screen.findByText("25 overdue")).toBeInTheDocument();
-  expect(screen.getByText("Overdue · 2026-11-20")).toBeInTheDocument();
+  expect(screen.getByText("Nov 20")).toHaveAttribute("datetime", "2026-11-20");
+  expect(screen.getByText("Overdue")).toBeInTheDocument();
 
   fireEvent.click(screen.getByRole("button", { name: /New Issue/ }));
   expect(onOpenCreateIssue).toHaveBeenCalledOnce();
@@ -111,6 +111,7 @@ it("renders KPI cards, overdue deadlines, assigned issues, and triggers callback
     expect.objectContaining({ id: "iss-1", identifier: "CORE-12" }),
   ));
   fireEvent.click(screen.getByRole("checkbox", { name: "Only my issues" }));
+  expect(screen.getByRole("progressbar", { name: "Completion progress" })).toBeInTheDocument();
   await waitFor(() => expect(api.issues.deadlines).toHaveBeenCalledWith("proj-1", "2026-11-25", true));
   expect(api.issues.counts).toHaveBeenCalledOnce();
 });

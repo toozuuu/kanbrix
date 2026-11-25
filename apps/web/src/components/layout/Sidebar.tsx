@@ -35,28 +35,29 @@ const themes = [
   { value: "system", label: "System", icon: Laptop },
 ] as const;
 
-export function Sidebar() {
+export function Sidebar({ collapsed, onCollapsedChange }: {
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
+}) {
   const {t}=useTranslation();
-  const [collapsed, setCollapsed] = useState(() =>
-    window.innerWidth < 768 || localStorage.getItem("kanbrix-nav-compact") === "true");
   const { user, logout } = useAuth();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const { currentProject, projects, setCurrentProject, currentWorkspace, projectStatus, refreshProjects } = useWorkspace();
   const workflow=useWorkflow();
   const { theme, setTheme } = useTheme();
-  function toggle() {
-    if (window.innerWidth >= 768) localStorage.setItem("kanbrix-nav-compact", String(!collapsed));
-    setCollapsed(!collapsed);
-  }
+  const toggle = () => onCollapsedChange(!collapsed);
+  const closeMobileNavigation = () => {
+    if (window.innerWidth < 768 && !collapsed) onCollapsedChange(true);
+  };
 
   return (
-    <div className={cn("motion-rail relative shrink-0", collapsed ? "w-14" : "w-14 md:w-56 lg:w-64")}>
+    <div className="motion-rail relative w-[var(--sidebar-width)] shrink-0">
       {!collapsed && <button aria-label="Close navigation" onClick={toggle}
         className="fixed inset-x-0 bottom-0 top-14 z-20 bg-black/35 md:hidden" />}
       <aside aria-label="Workspace sidebar"
-        onKeyDown={event => { if (event.key === "Escape" && !collapsed && window.innerWidth < 768) setCollapsed(true); }}
-        className={cn("motion-rail absolute inset-y-0 left-0 z-30 flex flex-col border-r border-border/75 bg-[hsl(var(--nav-surface))]",
-          collapsed ? "w-14" : "w-64 md:w-56 lg:w-64 max-w-[90vw] shadow-xl md:shadow-none")}>
+        onKeyDown={event => { if (event.key === "Escape") closeMobileNavigation(); }}
+        className={cn("motion-rail absolute inset-y-0 left-0 z-30 flex flex-col border-r border-border/75 bg-[hsl(var(--nav-surface))] md:w-[var(--sidebar-width)]",
+          collapsed ? "w-14" : "w-64 max-w-[90vw] shadow-xl md:shadow-none")}>
         <div className={cn("flex items-center gap-2 border-b border-border p-2", collapsed && "justify-center")}>
           {!collapsed && <div className="min-w-0 flex-1"><WorkspaceSwitcher /></div>}
           <button onClick={toggle} title={collapsed ? "Expand navigation" : "Collapse navigation"}
@@ -66,19 +67,32 @@ export function Sidebar() {
         </div>
         {!collapsed && currentWorkspace && (
           <div className="shrink-0 border-b border-border px-3 py-3">
-            <label htmlFor="sidebar-project" className="mb-1.5 flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <Layers3 size={14} aria-hidden="true"/>
-              {t("Active project")}
-            </label>
+            <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <label htmlFor="sidebar-project" className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                <Layers3 size={14} aria-hidden="true"/>
+                {t("Active project")}
+              </label>
+              {currentProject && (
+                <span aria-hidden="true" className="max-w-full rounded border border-border px-1.5 py-0.5 text-xs font-mono text-muted-foreground [overflow-wrap:anywhere]">
+                  {currentProject.project_key}
+                </span>
+              )}
+            </div>
             {projectStatus === "error" ? <p role="alert" className="text-sm">Could not load projects. <button className="underline" onClick={() => void refreshProjects()}>Retry</button></p>
               : projectStatus === "loading" ? <ProjectSpinner size="sm" message="Loading projects."/>
-              : projects.length === 0 ? <NavLink to="/projects" onClick={() => { if (window.innerWidth < 768) setCollapsed(true); }} className="text-sm underline">No projects yet. View projects</NavLink>
-              : <SelectBox id="sidebar-project" fullWidth value={currentProject?.id ?? ""}
-              unavailableLabel={currentProject?.name}
-              onChange={event => setCurrentProject(projects.find(project => project.id === event.target.value) ?? null)}>
-              {!currentProject && <option value="">{t("Choose project")}</option>}
-              {projects.map(project => <option key={project.id} value={project.id}>{project.name} ({project.project_key})</option>)}
-            </SelectBox>}
+              : projects.length === 0 ? <NavLink to="/projects" onClick={closeMobileNavigation} className="text-sm underline">No projects yet. View projects</NavLink>
+              : <div className="relative">
+                <SelectBox id="sidebar-project" className="sidebar-project-control" fullWidth value={currentProject?.id ?? ""}
+                  title={currentProject?.name}
+                  unavailableLabel={currentProject ? `${currentProject.name} (${currentProject.project_key})` : undefined}
+                  onChange={event => setCurrentProject(projects.find(project => project.id === event.target.value) ?? null)}>
+                  {!currentProject && <option value="">{t("Choose project")}</option>}
+                  {projects.map(project => <option key={project.id} value={project.id}>{project.name} ({project.project_key})</option>)}
+                </SelectBox>
+                <span aria-hidden="true" className="sidebar-project-value">
+                  {currentProject?.name ?? t("Choose project")}
+                </span>
+              </div>}
           </div>
         )}
         <nav aria-label="Main navigation" className="workspace-nav min-h-0 flex-1 overflow-y-auto px-2 py-4">
@@ -86,7 +100,7 @@ export function Sidebar() {
             className={cn("space-y-1", index > 0 && "mt-5 border-t border-border pt-5")}>
             {!collapsed && <h2 className="mb-2 px-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">{t(group.label)}</h2>}
             {group.items.filter(item=>item.href!=="/backlog" || workflow.data?.sprints!==false).map(({ label, href, icon: Icon }) => <NavLink key={href} to={href} aria-label={t(label)} title={collapsed ? t(label) : undefined}
-              onClick={() => { if (window.innerWidth < 768) setCollapsed(true); }}
+              onClick={closeMobileNavigation}
               className={({isActive}) => cn("relative flex min-h-10 items-center gap-3 rounded-xl text-sm transition-all duration-150",
                 collapsed ? "justify-center" : "px-3",
                 isActive ? "bg-primary/10 font-semibold text-primary shadow-sm" : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground")}>

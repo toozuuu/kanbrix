@@ -1,5 +1,6 @@
 import { ProjectEmptyState } from "../components/ui/ProjectEmptyState";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useWorkspace } from "../context/WorkspaceContext";
 import { api } from "../lib/api";
 import { Issue, Sprint } from "../types";
@@ -14,6 +15,7 @@ interface BacklogPageProps {
 
 export function BacklogPage({ onIssueClick, onOpenNewIssue }: BacklogPageProps) {
   const { currentProject } = useWorkspace();
+  const queryClient = useQueryClient();
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [isNewSprintModalOpen, setIsNewSprintModalOpen] = useState(false);
@@ -82,11 +84,15 @@ export function BacklogPage({ onIssueClick, onOpenNewIssue }: BacklogPageProps) 
         onOpenNewIssue={onOpenNewIssue}
       />
 
-      <NewSprintModal
-        isOpen={isNewSprintModalOpen}
-        onClose={() => setIsNewSprintModalOpen(false)}
-        onSuccess={loadData}
-      />
+      {isNewSprintModalOpen && (
+        <NewSprintModal
+          onClose={() => setIsNewSprintModalOpen(false)}
+          onSuccess={() => {
+            void loadData();
+            void queryClient.invalidateQueries({ queryKey: ["project-sprints", currentProject.id] });
+          }}
+        />
+      )}
     </div>
   );
 }

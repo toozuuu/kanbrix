@@ -12,12 +12,13 @@ import { Notification } from "../../types";
 import { formatRelativeTime } from "../../lib/utils";
 
 interface HeaderProps {
+  sidebarCollapsed: boolean;
   onOpenCreateIssue: () => void;
   onOpenCommandPalette: () => void;
   onOpenKeyboardShortcuts: () => void;
 }
 
-export function Header({ onOpenCreateIssue, onOpenCommandPalette, onOpenKeyboardShortcuts }: HeaderProps) {
+export function Header({ sidebarCollapsed, onOpenCreateIssue, onOpenCommandPalette, onOpenKeyboardShortcuts }: HeaderProps) {
   const {t}=useTranslation();
   const cfg=useConfiguration().data?.configuration;
   const { currentProject, currentWorkspace } = useWorkspace();
@@ -58,12 +59,13 @@ export function Header({ onOpenCreateIssue, onOpenCommandPalette, onOpenKeyboard
   const unreadCount = notifications.filter((n) => !n.read_at).length;
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border bg-card px-2 sm:gap-4 sm:px-4">
-      <Link to="/dashboard" aria-label={cfg?.brand || "Kanbrix"} className="flex min-w-0 shrink-0 items-center gap-2 md:w-52 lg:w-60">
+    <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border bg-card pr-2 sm:gap-4 sm:pr-4 md:gap-0">
+      <Link to="/dashboard" aria-label={cfg?.brand || "Kanbrix"}
+        className="motion-rail flex h-9 min-w-0 shrink-0 items-center gap-2 pl-2 sm:pl-4 md:w-[var(--sidebar-width)] md:border-r md:border-border md:pr-2">
         <img referrerPolicy="no-referrer" src={cfg?.logo || "/kanbrix.svg"} alt="" width="32" height="32" className="h-8 w-8 shrink-0 object-contain"/>
-        <span className="truncate font-serif text-xl tracking-tight">{cfg?.brand || "Kanbrix"}</span>
+        <span className={`truncate font-serif text-xl tracking-tight ${sidebarCollapsed ? "md:hidden" : ""}`}>{cfg?.brand || "Kanbrix"}</span>
       </Link>
-      <div className="hidden min-w-0 flex-1 items-center gap-3 border-l border-border pl-4 md:flex">
+      <div className="hidden min-w-0 flex-1 items-center gap-3 px-4 md:flex">
         <div className="min-w-0">
           <p className="truncate text-xs text-muted-foreground">{currentWorkspace?.name}</p>
           <p className="truncate text-sm font-semibold">{currentProject?.name || t("All Projects")}</p>

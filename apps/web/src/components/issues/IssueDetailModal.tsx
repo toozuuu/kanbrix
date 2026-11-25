@@ -239,7 +239,7 @@ export function IssueDetailModal({
             {/* Description Section */}
             <div className="space-y-2">
               <h3 className="text-sm font-semibold">{t("Description")}</h3>
-              {editingDescription ? <><MarkdownEditor label={t("Edit description")} value={description} onChange={setDescription}/>
+              {editingDescription ? <><MarkdownEditor label={t("Edit description")} value={description} onChange={setDescription} defaultMode="rich"/>
                 <Button size="sm" disabled={isUpdating} onClick={()=>handleUpdate({description})}>{t("Save description")}</Button>
                 <Button size="sm" variant="ghost" onClick={()=>{setDescription(issue.description??"");editDescription(false);}}>{t("Cancel")}</Button></>
                 : <><Markdown text={description || "No description provided."}/><button className="text-xs underline" onClick={()=>editDescription(true)}>{t("Edit description")}</button></>}
@@ -291,7 +291,7 @@ export function IssueDetailModal({
 
                 {/* Add comment input */}
                 <form onSubmit={handleAddComment} className="flex flex-col items-start gap-2">
-                  <MarkdownEditor className="w-full" label={t("Add a comment")} value={newComment} onChange={setNewComment}/>
+                  <MarkdownEditor className="w-full" label={t("Add a comment")} value={newComment} onChange={setNewComment} defaultMode="rich"/>
                   <Button size="sm" type="submit" isLoading={isSubmittingComment} className="gap-1">
                     <Send className="h-3.5 w-3.5" />
                     <span>Post</span>

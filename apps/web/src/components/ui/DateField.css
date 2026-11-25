@@ -10,6 +10,12 @@
   width: 100%;
 }
 
+/* Give the calendar room to scroll inside a dialog on short screens. */
+.kanbrix-date-field[data-calendar-in-flow] .flatpickr-calendar.static.open {
+  position: relative;
+  top: auto;
+}
+
 /* Ensure the calendar container takes exactly 100% of the input's width */
 .kanbrix-date-field .flatpickr-calendar {
   width: 100% !important;

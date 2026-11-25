@@ -75,6 +75,7 @@ export function RegisterPage() {
 
             <Input
               type="password"
+              autoComplete="new-password"
               label="Password (min. 8 characters)"
               placeholder="••••••••"
               value={password}

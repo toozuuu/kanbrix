@@ -1,5 +1,6 @@
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Issue, IssueStatus } from "../../types";
 import { IssueCard } from "./IssueCard";
 import { cn } from "../../lib/utils";
@@ -13,6 +14,8 @@ interface KanbanColumnProps {
   onAddIssueToStatus: (statusId: string) => void;
 }
 
+const ticketsBeforeScrolling = 20;
+
 export function KanbanColumn({
   status,
   issues, loadMore,
@@ -23,6 +26,29 @@ export function KanbanColumn({
     id: status.id,
     data: { status },
   });
+  const cardList = useRef<HTMLDivElement>(null);
+  const [scrollHeight, setScrollHeight] = useState<number>();
+  const needsScroll = issues.length > ticketsBeforeScrolling;
+
+  useLayoutEffect(() => {
+    const list = cardList.current;
+    if (!needsScroll || !list) return;
+
+    const visibleCards = Array.from(list.children).slice(0, ticketsBeforeScrolling);
+    const lastCard = visibleCards.at(-1);
+    if (!(lastCard instanceof HTMLElement)) return;
+
+    // Use layout positions so drag transforms don't change the scroll viewport.
+    const measure = () => {
+      const bottomPadding = parseFloat(getComputedStyle(list).paddingBottom);
+      setScrollHeight(Math.ceil(lastCard.offsetTop + lastCard.offsetHeight + bottomPadding));
+    };
+    measure();
+
+    const observer = new ResizeObserver(measure);
+    visibleCards.forEach(card => observer.observe(card));
+    return () => observer.disconnect();
+  }, [issues, needsScroll]);
 
   const getStatusColor = (category: string) => {
     switch (category) {
@@ -46,7 +72,7 @@ export function KanbanColumn({
 
   return (
     <section data-drop-active={isOver || undefined} ref={setNodeRef} aria-label={status.name} className={cn(
-      "motion-board-column flex max-h-full w-[min(17rem,78vw)] shrink-0 flex-col rounded-[var(--card-radius)] border border-border/75 bg-secondary/45 shadow-[var(--shadow-sm)] transition-colors",
+      "motion-board-column flex w-[min(17rem,78vw)] shrink-0 flex-col rounded-[var(--card-radius)] border border-border/75 bg-secondary/45 shadow-[var(--shadow-sm)] transition-colors",
       overWip && "border-amber-500/70 bg-amber-500/[0.04]",
       isOver && "border-primary/50 bg-primary/5 ring-2 ring-primary/15",
     )}>
@@ -73,18 +99,23 @@ export function KanbanColumn({
       </div>
 
       {/* Issues Droppable Area */}
-      <div className="min-h-3 flex-1 space-y-2 overflow-y-auto px-2 py-1">
-        <SortableContext items={issues.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-          {issues.map((issue) => (
-            <IssueCard key={issue.id} issue={issue} onClick={onIssueClick} />
-          ))}
-        </SortableContext>
+      <div
+        className={cn("min-h-3", needsScroll && "overflow-y-auto")}
+        style={needsScroll ? { maxHeight: scrollHeight } : undefined}
+      >
+        <div ref={cardList} className="relative space-y-2 px-2 py-1">
+          <SortableContext items={issues.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+            {issues.map((issue) => (
+              <IssueCard key={issue.id} issue={issue} onClick={onIssueClick} />
+            ))}
+          </SortableContext>
 
-        {loadMore && (
-          <button type="button" onClick={loadMore} className="w-full py-2 text-sm text-primary hover:text-primary/80 font-medium transition-colors">
-            Load more issues
-          </button>
-        )}
+          {loadMore && (
+            <button type="button" onClick={loadMore} className="w-full py-2 text-sm text-primary hover:text-primary/80 font-medium transition-colors">
+              Load more issues
+            </button>
+          )}
+        </div>
       </div>
       <button type="button"
         onClick={() => onAddIssueToStatus(status.id)}

@@ -3,6 +3,8 @@
     "name": "Kanbrix",
     "loading": "Loading Kanbrix..."
   },
+  "Show password": "Show password",
+  "Hide password": "Hide password",
   "navigation": {
     "dashboard": "Dashboard",
     "board": "Board",

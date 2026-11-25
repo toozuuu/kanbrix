@@ -175,6 +175,7 @@ function EmailEditor({
           </label>
 
           <Input
+            key={provider}
             label={
               provider === "postmark"
                 ? "Postmark Server Token"

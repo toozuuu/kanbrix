@@ -113,7 +113,7 @@ export function KanbanPage({ onIssueClick, onAddIssueToStatus }: KanbanPageProps
   if (!currentProject) return <ProjectEmptyState/>;
 
   return (
-    <div className="flex min-h-full flex-col gap-3 lg:h-full lg:min-h-0">
+    <div className="flex min-h-full flex-col gap-3">
       {/* Top Controls Bar */}
       <div className="page-header">
         <div>
@@ -251,7 +251,7 @@ export function KanbanPage({ onIssueClick, onAddIssueToStatus }: KanbanPageProps
         )}
       </div>
       {/* Kanban Board Canvas */}
-      <div className="relative h-[65dvh] min-h-80 overflow-hidden lg:h-auto lg:min-h-0 lg:flex-1">
+      <div className="relative">
         {queries.some(q => q.isFetching && !q.isPending) && (
           <div className="absolute top-2 right-4 z-20 pointer-events-none flex items-center gap-2 rounded-full border border-primary/30 bg-card/95 px-3 py-1 shadow-md backdrop-blur-md text-xs font-medium text-foreground animate-fade-in">
             <span className="relative flex h-2 w-2">
@@ -281,7 +281,7 @@ export function KanbanPage({ onIssueClick, onAddIssueToStatus }: KanbanPageProps
           onAddIssueToStatus={(statusId) => onAddIssueToStatus(statusId)}
           onRefresh={refresh}
         /> : (
-          <div className="h-full overflow-y-auto space-y-6 pr-1">
+          <div className="space-y-6 pr-1">
             {Array.from(
               issues.reduce((acc, issue) => {
                 const key = groupBy === "assignee"

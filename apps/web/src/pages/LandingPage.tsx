@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { DemoBoard, initial, stages, tasks, type BoardProps } from "./DemoBoard";
 import type { ComponentType } from "react";
 import { Link } from "react-router-dom";
-import { ArrowDown, ArrowRight, Check, Columns3, GitBranch, List, RotateCcw, Share2 } from "lucide-react";
+import { ArrowDown, ArrowRight, Check, ChevronDown, Columns3, GitBranch, List, RotateCcw, Share2 } from "lucide-react";
 import { useDocumentMeta } from "../lib/useDocumentMeta";
 import "./landing.css";
 
@@ -43,6 +43,8 @@ const FAQS = [
   },
 ];
 
+const useBoardLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 export function LandingPage() {
   useDocumentMeta({
     title: "Kanbrix | Open-Source Jira Alternative",
@@ -58,6 +60,8 @@ export function LandingPage() {
     if (saved && /^[012]{3}$/.test(saved)) setPositions([...saved].map(Number));
   }, []);
   const demo = useRef<HTMLElement>(null);
+  const previousCardPositions = useRef(new Map<string, DOMRect>());
+  const focusedCard = useRef<string>();
   const [Board, setBoard] = useState<ComponentType<BoardProps>>(() => DemoBoard);
   useEffect(() => {
     let active = true;
@@ -71,11 +75,56 @@ export function LandingPage() {
     observer.observe(demo.current);
     return () => { active = false; observer.disconnect(); };
   }, []);
+  function captureBoard() {
+    const cards = demo.current?.querySelectorAll<HTMLElement>("[data-demo-card]");
+    const active = document.activeElement;
+    focusedCard.current = active?.matches("[data-demo-action]")
+      ? active.closest<HTMLElement>("[data-demo-card]")?.dataset.demoCard
+      : undefined;
+    previousCardPositions.current.clear();
+    if (!window.matchMedia?.("(prefers-reduced-motion: no-preference)").matches) return;
+    cards?.forEach(card => {
+      const ticket = card.firstElementChild;
+      if (card.dataset.demoCard && ticket) {
+        previousCardPositions.current.set(card.dataset.demoCard, ticket.getBoundingClientRect());
+      }
+    });
+  }
+
+  useBoardLayoutEffect(() => {
+    demo.current?.querySelectorAll<HTMLElement>("[data-demo-card]").forEach(card => {
+      const key = card.dataset.demoCard;
+      if (!key) return;
+      if (focusedCard.current === key) {
+        card.querySelector<HTMLElement>("[data-demo-action]")?.focus({ preventScroll: true });
+      }
+      const previous = previousCardPositions.current.get(key);
+      if (!previous || typeof card.animate !== "function") return;
+      card.getAnimations().forEach(animation => animation.cancel());
+      const next = card.getBoundingClientRect();
+      const x = previous.left - next.left;
+      const y = previous.top - next.top;
+      if (Math.abs(x) < 1 && Math.abs(y) < 1) return;
+      card.animate(
+        [{ translate: `${x}px ${y}px` }, { translate: "0 0" }],
+        { duration: 360, easing: "cubic-bezier(.2,.75,.25,1)" },
+      );
+    });
+    previousCardPositions.current.clear();
+    focusedCard.current = undefined;
+  }, [positions, list]);
+
   function move(index: number, next = (positions[index] + 1) % stages.length) {
     if (positions[index] === next) return;
+    captureBoard();
     setPositions(previous => previous.map((value, i) => i === index ? next : value));
     setNotice(tasks[index].title + " moved to " + stages[next]);
     setShareUrl("");
+  }
+  function changeView(next: boolean) {
+    if (list === next) return;
+    captureBoard();
+    setList(next);
   }
   async function share() {
     const url = new URL("/", window.location.origin);
@@ -103,11 +152,15 @@ export function LandingPage() {
         </div>
         <div className="release-preview">
           <div className="release-heading"><span><GitBranch size={16}/> Release workflow</span><span className="release-key">{tasks[0].key}</span></div>
-          <div className="release-track" aria-hidden="true">
+          <div className="release-track" role="group" aria-label="Release workflow stages">
             <div className="release-track-line"><i style={{width: positions[0] * 50 + "%"}}/></div>
-            {stages.map((stage, i) => <div key={stage} className="release-stop" data-reached={i <= positions[0]}>
-              <span>{i < positions[0] || (i === 2 && positions[0] === 2) ? <Check size={13}/> : <i/>}</span>{stage}
-            </div>)}
+            {stages.map((stage, i) => (
+              <button type="button" key={stage} className="release-stop" data-reached={i <= positions[0]}
+                aria-pressed={i === positions[0]} onClick={() => move(0, i)}>
+                <span aria-hidden="true">{i < positions[0] || (i === 2 && positions[0] === 2) ? <Check size={13}/> : <i/>}</span>
+                {stage}
+              </button>
+            ))}
           </div>
           <div className="release-ticket">
             <div className="release-ticket-body" key={positions[0]}>
@@ -124,12 +177,16 @@ export function LandingPage() {
       <section ref={demo} id="demo" className="launch-demo" aria-label="Interactive sample board">
         <div className="demo-title"><div><p>Interactive demo</p><h2>Release board</h2></div>
           <div className="demo-tools">
-            <button aria-pressed={!list} onClick={() => setList(false)}><Columns3 size={15}/>Board</button>
-            <button aria-pressed={list} onClick={() => setList(true)}><List size={15}/>List</button>
+            <button aria-pressed={!list} onClick={() => changeView(false)}><Columns3 size={15}/>Board</button>
+            <button aria-pressed={list} onClick={() => changeView(true)}><List size={15}/>List</button>
             <button onClick={share}><Share2 size={15}/>Share</button>
           </div>
         </div>
-        <div className="demo-progress"><Check size={14}/>{done} of {tasks.length} issues done <progress value={done} max={tasks.length}/></div>
+        <div className="demo-progress">
+          <Check size={14} aria-hidden="true"/>{done} of {tasks.length} issues done
+          <progress className="sr-only" aria-label="Demo completion" value={done} max={tasks.length}/>
+          <span className="demo-meter" aria-hidden="true"><span style={{ transform: `scaleX(${done / tasks.length})` }}/></span>
+        </div>
         <p className="demo-help">Drag an issue by its title, or use its action button to change status.</p>
         <Board positions={positions} list={list} move={move}/>
         <p className="demo-notice" role="status">{notice}</p>
@@ -154,14 +211,14 @@ export function LandingPage() {
           <p>FAQ</p>
           <h2 id="faq-heading">Frequently asked questions</h2>
         </div>
-        <dl className="launch-faq">
+        <div className="launch-faq">
           {FAQS.map((item) => (
-            <div key={item.question} className="launch-faq-item">
-              <dt>{item.question}</dt>
-              <dd>{item.answer}</dd>
-            </div>
+            <details key={item.question} className="launch-faq-item">
+              <summary>{item.question}<ChevronDown size={18} aria-hidden="true"/></summary>
+              <p>{item.answer}</p>
+            </details>
           ))}
-        </dl>
+        </div>
       </section>
     </main>
     <footer className="launch-footer mx-auto max-w-6xl px-6 py-8 text-sm">

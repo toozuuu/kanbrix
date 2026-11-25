@@ -5,7 +5,7 @@ import path from 'path';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  optimizeDeps: { include: ["flatpickr"] },
+  optimizeDeps: { include: ["flatpickr", "codemirror", "@codemirror/lang-html", "@codemirror/theme-one-dark"] },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

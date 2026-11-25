@@ -294,6 +294,7 @@ export function ExternalSyncPanel({ workspaceId }: { workspaceId: string }) {
             </>
           )}
           <Input
+            key={provider}
             label={
               provider === "jira"
                 ? "Jira API Token"

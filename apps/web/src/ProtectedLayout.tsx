@@ -51,6 +51,13 @@ export default function ProtectedLayout() {
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [selectedIssueProject, setSelectedIssueProject] = useState<Project | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
+    window.innerWidth < 768 || localStorage.getItem("kanbrix-nav-compact") === "true");
+
+  function changeSidebarCollapsed(collapsed: boolean) {
+    if (window.innerWidth >= 768) localStorage.setItem("kanbrix-nav-compact", String(collapsed));
+    setSidebarCollapsed(collapsed);
+  }
 
   const client = useQueryClient();
   const refreshIssueViews = useCallback(() => {
@@ -177,16 +184,18 @@ export default function ProtectedLayout() {
   }
 
   return (
-    <div style={cfg?.accent ? accentStyle(cfg.accent) : undefined} className={`flex flex-col h-dvh w-full overflow-hidden bg-background text-foreground ${cfg?.accent ? "workspace-brand" : ""}`}>
+    <div style={cfg?.accent ? accentStyle(cfg.accent) : undefined}
+      className={`flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground [--sidebar-width:theme(spacing.14)] ${sidebarCollapsed ? "" : "md:[--sidebar-width:theme(spacing.56)] lg:[--sidebar-width:theme(spacing.64)]"} ${cfg?.accent ? "workspace-brand" : ""}`}>
         <LanguageSync/>
         <a href="#workspace-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-card focus:p-3">Skip to workspace content</a>
         <Header
+          sidebarCollapsed={sidebarCollapsed}
           onOpenCreateIssue={() => handleOpenCreateIssue()}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
           onOpenKeyboardShortcuts={() => setIsKeyboardShortcutsOpen(true)}
         />
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        <Sidebar />
+        <Sidebar collapsed={sidebarCollapsed} onCollapsedChange={changeSidebarCollapsed} />
         <main id="workspace-content" tabIndex={-1} className={`min-w-0 flex-1 overflow-y-auto p-3 sm:p-6${isSettingsPage ? " [scrollbar-gutter:stable]" : ""}`}>
           <Suspense fallback={<ProjectSpinner size="sm" message="Loading page…" />}>
             <Routes key={routesKey}>

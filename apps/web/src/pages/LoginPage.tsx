@@ -63,6 +63,7 @@ export function LoginPage() {
 
             <Input
               type="password"
+              autoComplete="current-password"
               label={t("Password")}
               placeholder="••••••••"
               value={password}

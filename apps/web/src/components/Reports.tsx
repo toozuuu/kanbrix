@@ -26,7 +26,7 @@ export default function Reports({project}:{project:string}){
       itemStyle={{color:"hsl(var(--foreground))"}}/>
     <Legend wrapperStyle={{fontSize:12}}/>
   </>;
-  return <section className="rounded-2xl border border-border/75 bg-card p-5 sm:p-6 space-y-4 shadow-[var(--shadow-sm)]">
+  return <section className="min-w-0 space-y-4 rounded-xl border border-border bg-card p-4 sm:p-5">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 className="text-base font-semibold tracking-tight text-foreground">{t("Project reports")}</h2>
       <div className="flex flex-wrap gap-2"><SelectBox aria-label="Chart" value={view} onChange={e=>setView(e.target.value)}>{["Flow","Burndown","Lead and cycle time"].map(v=><option value={v} key={v}>{t(v)}</option>)}</SelectBox>

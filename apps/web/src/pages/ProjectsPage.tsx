@@ -176,17 +176,17 @@ export function ProjectsPage() {
           return (
             <div
               key={proj.id}
-              className={`motion-project-card p-5 rounded-2xl border bg-card hover:border-primary/40 hover:shadow-[var(--shadow-md)] transition-all cursor-pointer space-y-3 relative group shadow-[var(--shadow-sm)] ${
+              className={`motion-project-card min-w-0 p-5 rounded-2xl border bg-card hover:border-primary/40 hover:shadow-[var(--shadow-md)] transition-all cursor-pointer space-y-3 relative group shadow-[var(--shadow-sm)] ${
                 isSelected ? "border-primary ring-1 ring-primary/30" : "border-border/75"
               }`}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-mono font-bold text-xs">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <div className="flex min-w-0 grow basis-40 items-center gap-2.5">
+                  <span className="min-h-8 min-w-8 max-w-[55%] shrink-0 rounded-lg border border-primary/20 bg-primary/10 px-2 py-1.5 text-center font-mono text-xs font-bold text-primary [overflow-wrap:anywhere]">
                     {proj.project_key}
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-foreground transition-colors [overflow-wrap:anywhere] group-hover:text-primary">
                       {proj.name}
                     </h3>
                     <span className="text-xs text-muted-foreground">
@@ -195,7 +195,7 @@ export function ProjectsPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5">
+                <div className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-1.5">
                   {isSelected ? (
                     <span className="text-xs font-semibold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">
                       Active
@@ -246,11 +246,11 @@ export function ProjectsPage() {
                 </div>
               </div>
 
-              <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed min-h-[32px]">
+              <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed min-h-[32px] [overflow-wrap:anywhere]">
                 {proj.description || <span className="italic">No description provided.</span>}
               </p>
 
-              <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/40 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1 font-mono text-xs">
                   <Layers className="h-3.5 w-3.5" />
                   {proj.issue_counter} total issues
