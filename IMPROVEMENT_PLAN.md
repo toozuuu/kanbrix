@@ -2,7 +2,7 @@
 
 ## Phase 1: Content & Media (Weeks 1-2)
 - [x] **1. Markdown/Rich Text Support** - Add TipTap editor for issue descriptions & comments
-- [x] **2. File Attachments** - Drag & drop uploads with S3/local storage support
+- [x] **2. File Attachments** - Drag & drop uploads with local storage
 
 ## Phase 2: Real-time & Analytics (Weeks 3-4)
 - [x] **3. Real-time Board Updates** - WebSocket integration for live collaboration
@@ -22,4 +22,4 @@
 
 ## Current Task: **All Tasks Complete!**
 
-All 10 tasks in the improvement plan have been completed.
+All 10 tasks in this plan have been completed. See the [roadmap](docs/ROADMAP.md) for remaining work.
