@@ -8,12 +8,12 @@ use validator::Validate;
 
 use crate::{
     common::{
-        auth::{verify_workspace_membership, AuthenticatedUser},
+        auth::{generate_session_token, verify_workspace_membership, AuthenticatedUser},
         error::AppError,
         state::AppState,
     },
     domain::workspaces::dto::{
-        CreateWorkspaceRequest, InviteMemberRequest, UpdateWorkspaceRequest,
+        CreateWorkspaceRequest, InviteMemberRequest, InviteMemberResponse, UpdateWorkspaceRequest,
         WorkspaceMemberResponse, WorkspaceResponse,
     },
 };
@@ -256,13 +256,13 @@ pub async fn list_members(
     Ok(Json(members))
 }
 
-#[utoipa::path(post,path="/api/v1/workspaces/{workspace_id}/invitations",params(("workspace_id"=Uuid,Path,description="workspace id")),request_body=InviteMemberRequest,responses((status=200)))]
+#[utoipa::path(post,path="/api/v1/workspaces/{workspace_id}/invitations",params(("workspace_id"=Uuid,Path,description="workspace id")),request_body=InviteMemberRequest,responses((status=201,body=InviteMemberResponse)))]
 pub async fn invite_member(
     auth_user: AuthenticatedUser,
     Path(workspace_id): Path<Uuid>,
     State(state): State<AppState>,
     Json(payload): Json<InviteMemberRequest>,
-) -> Result<StatusCode, AppError> {
+) -> Result<(StatusCode, Json<InviteMemberResponse>), AppError> {
     let role = verify_workspace_membership(&state.pool, workspace_id, auth_user.id).await?;
     crate::domain::workspaces::configuration::permit(
         &state.pool,
@@ -280,59 +280,48 @@ pub async fn invite_member(
     payload
         .validate()
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
-
-    // Check if user already exists with that email
-    let existing_user = sqlx::query!("SELECT id FROM users WHERE email = $1", payload.email)
-        .fetch_optional(&state.pool)
-        .await
-        .map_err(AppError::DatabaseError)?;
-
-    if let Some(target_user) = existing_user {
-        // Add directly as member
-        sqlx::query!(
-            r#"
-            INSERT INTO workspace_members (workspace_id, user_id, role)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (workspace_id, user_id)
-            DO UPDATE SET role = EXCLUDED.role
-            "#,
-            workspace_id,
-            target_user.id,
-            payload.role
-        )
-        .execute(&state.pool)
-        .await
-        .map_err(AppError::DatabaseError)?;
-
-        let ws_name: String = sqlx::query_scalar("SELECT name FROM workspaces WHERE id = $1")
-            .bind(workspace_id)
-            .fetch_optional(&state.pool)
-            .await
-            .ok()
-            .flatten()
-            .unwrap_or_else(|| "Kanbrix".into());
-        let pool = state.pool.clone();
-        let recipient = payload.email.clone();
-        let assigned_role = payload.role.clone();
-        tokio::spawn(async move {
-            let subject = format!("You were added to {ws_name} on Kanbrix");
-            let body = format!(
-                "You have been added to the {ws_name} workspace with the {assigned_role} role."
-            );
-            if let Err(err) = super::email::send_workspace_email(
-                &pool,
-                workspace_id,
-                &recipient,
-                &subject,
-                &body,
-                true,
-            )
-            .await
-            {
-                tracing::debug!("Skipped/failed workspace invite email: {err:?}");
-            }
-        });
+    if !matches!(payload.role.as_str(), "Admin" | "Member" | "Viewer") {
+        return Err(AppError::BadRequest("Invalid invitation role".into()));
     }
 
-    Ok(StatusCode::CREATED)
+    let ws_name: String = sqlx::query_scalar("SELECT name FROM workspaces WHERE id = $1")
+        .bind(workspace_id)
+        .fetch_one(&state.pool)
+        .await
+        .map_err(AppError::DatabaseError)?;
+    let (token, token_hash) = generate_session_token();
+    sqlx::query(
+        "INSERT INTO workspace_invitations (workspace_id, email, role, token_hash, expires_at)
+         VALUES ($1, $2, $3, $4, NOW() + INTERVAL '7 days')
+         ON CONFLICT (workspace_id, email) WHERE accepted_at IS NULL
+         DO UPDATE SET role = EXCLUDED.role, token_hash = EXCLUDED.token_hash,
+                       expires_at = EXCLUDED.expires_at, created_at = NOW()",
+    )
+    .bind(workspace_id)
+    .bind(payload.email.to_ascii_lowercase())
+    .bind(&payload.role)
+    .bind(token_hash)
+    .execute(&state.pool)
+    .await
+    .map_err(AppError::DatabaseError)?;
+
+    let origin = state.config.client_origin.trim_end_matches('/');
+    let link = format!("{origin}/register#invite={token}");
+    let email_sent = super::email::send_workspace_email(
+        &state.pool,
+        workspace_id,
+        &payload.email,
+        &format!("Invitation to {ws_name} on Kanbrix"),
+        &format!("Create your account with this email address to join {ws_name}.\n\n{link}\n\nThis link expires in 7 days."),
+        true,
+    )
+    .await
+    .unwrap_or(false);
+    Ok((
+        StatusCode::CREATED,
+        Json(InviteMemberResponse {
+            invitation_link: link,
+            email_sent,
+        }),
+    ))
 }

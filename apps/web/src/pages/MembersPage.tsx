@@ -3,7 +3,7 @@ import { SelectBox } from "../components/ui/SelectBox";
 import React, { useState } from "react";
 import { useWorkspace } from "../context/WorkspaceContext";
 import { api } from "../lib/api";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { Input } from "../components/ui/Input";
@@ -14,20 +14,26 @@ import { UserPlus, Shield } from "lucide-react";
 
 export function MembersPage() {
   const { currentWorkspace } = useWorkspace();
-  const client = useQueryClient();
   const workspaceId = currentWorkspace?.id;
   const memberKey = ["workspace-members", workspaceId];
   const memberQuery = useQuery({
     queryKey: memberKey,
     enabled: Boolean(workspaceId),
     queryFn: () => api.workspaces.members(workspaceId!),
+    refetchOnWindowFocus: "always",
   });
   const members = memberQuery.data ?? [];
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("Member");
   const [isLoading, setIsLoading] = useState(false);
+  const [invitation, setInvitation] = useState<{ link: string; sent: boolean }>();
   const { toast } = useToast();
+
+  const closeInvite = () => {
+    setIsModalOpen(false);
+    setInvitation(undefined);
+  };
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,11 +41,9 @@ export function MembersPage() {
 
     try {
       setIsLoading(true);
-      await api.workspaces.invite(currentWorkspace.id, { email: email.trim(), role });
-      toast("Invitation sent successfully!", "success");
+      const result = await api.workspaces.invite(currentWorkspace.id, { email: email.trim(), role });
       setEmail("");
-      setIsModalOpen(false);
-      void client.invalidateQueries({queryKey: memberKey});
+      setInvitation({ link: result.invitation_link, sent: result.email_sent });
     } catch (err: any) {
       toast(err.message || "Failed to invite member", "error");
     } finally {
@@ -105,11 +109,29 @@ export function MembersPage() {
       {/* Invite Member Modal */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => { if (!isLoading) closeInvite(); }}
         title="Invite Member to Workspace"
         description="Invited members will receive access to all projects inside this workspace."
       >
-        <form onSubmit={handleInvite} className="space-y-4">
+        {invitation ? (
+          <div className="space-y-4">
+            <p role="status" className="text-sm">{invitation.sent
+              ? "Invitation emailed. The link expires in 7 days."
+              : "Share this link with the invitee. It expires in 7 days."}</p>
+            <Input label="Invitation link" value={invitation.link} readOnly onFocus={event => event.currentTarget.select()} />
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button type="button" variant="outline" onClick={closeInvite}>Done</Button>
+              <Button type="button" onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(invitation.link);
+                  toast("Invitation link copied.", "success");
+                } catch {
+                  toast("Select the invitation link and copy it manually.", "error");
+                }
+              }}>Copy link</Button>
+            </div>
+          </div>
+        ) : <form onSubmit={handleInvite} className="space-y-4">
           <Input
             type="email"
             label="User Email"
@@ -120,7 +142,7 @@ export function MembersPage() {
           />
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-foreground/80 tracking-wide">
+            <label htmlFor="workspace-role" className="block text-xs font-semibold text-foreground/80 tracking-wide">
               Workspace Role
             </label>
             <SelectBox fullWidth id="workspace-role"
@@ -134,14 +156,14 @@ export function MembersPage() {
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-border">
-            <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
+            <Button type="button" variant="outline" onClick={closeInvite} disabled={isLoading}>
               Cancel
             </Button>
             <Button type="submit" isLoading={isLoading}>
               Send Invitation
             </Button>
           </div>
-        </form>
+        </form>}
       </Modal>
     </div>
   );

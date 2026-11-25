@@ -30,6 +30,7 @@ use crate::{
             workspaces::dto::WorkspaceResponse,
             workspaces::dto::WorkspaceMemberResponse,
             workspaces::dto::InviteMemberRequest,
+            workspaces::dto::InviteMemberResponse,
             projects::dto::CreateProjectRequest,
             projects::dto::UpdateProjectRequest,
             projects::dto::ProjectResponse,

@@ -1,6 +1,7 @@
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 use chrono::{Duration, Utc};
+use uuid::Uuid;
 use validator::Validate;
 
 use crate::{
@@ -94,6 +95,14 @@ pub async fn register(
     .await
     .map_err(AppError::DatabaseError)?;
 
+    let joined_workspace_id = accept_invitation(
+        &mut tx,
+        user_row.id,
+        &user_row.email,
+        payload.invitation_token.as_deref(),
+    )
+    .await?;
+
     // Create session
     let (token, token_hash) = generate_session_token();
     let expires_at = Utc::now() + Duration::hours(state.config.session_ttl_hours);
@@ -133,7 +142,13 @@ pub async fn register(
 
     Ok((
         updated_jar,
-        (StatusCode::CREATED, Json(AuthResponse { user: user_resp })),
+        (
+            StatusCode::CREATED,
+            Json(AuthResponse {
+                user: user_resp,
+                joined_workspace_id,
+            }),
+        ),
     ))
 }
 
@@ -182,6 +197,15 @@ pub async fn login(
         return Err(AppError::Unauthorized("Invalid email or password".into()));
     }
 
+    let mut tx = state.pool.begin().await?;
+    let joined_workspace_id = accept_invitation(
+        &mut tx,
+        user.id,
+        &user.email,
+        payload.invitation_token.as_deref(),
+    )
+    .await?;
+
     let (token, token_hash) = generate_session_token();
     let expires_at = Utc::now() + Duration::hours(state.config.session_ttl_hours);
 
@@ -194,9 +218,11 @@ pub async fn login(
         token_hash,
         expires_at
     )
-    .execute(&state.pool)
+    .execute(&mut *tx)
     .await
     .map_err(AppError::DatabaseError)?;
+
+    tx.commit().await?;
 
     let mut cookie = Cookie::new(SESSION_COOKIE_NAME, token);
     cookie.set_path("/");
@@ -218,8 +244,48 @@ pub async fn login(
 
     Ok((
         updated_jar,
-        (StatusCode::OK, Json(AuthResponse { user: user_resp })),
+        (
+            StatusCode::OK,
+            Json(AuthResponse {
+                user: user_resp,
+                joined_workspace_id,
+            }),
+        ),
     ))
+}
+
+async fn accept_invitation(
+    db: &mut sqlx::PgConnection,
+    user_id: Uuid,
+    email: &str,
+    token: Option<&str>,
+) -> Result<Option<Uuid>, AppError> {
+    let Some(token) = token else { return Ok(None) };
+    let (workspace_id, role) = sqlx::query_as::<_, (Uuid, String)>(
+        "UPDATE workspace_invitations SET accepted_at = NOW()
+         WHERE token_hash = $1 AND email = $2 AND expires_at > NOW()
+           AND accepted_at IS NULL
+         RETURNING workspace_id, role",
+    )
+    .bind(hash_token(token))
+    .bind(email.to_ascii_lowercase())
+    .fetch_optional(&mut *db)
+    .await?
+    .ok_or_else(|| {
+        AppError::BadRequest("Use the email address on a valid invitation link.".into())
+    })?;
+
+    sqlx::query(
+        "INSERT INTO workspace_members (workspace_id, user_id, role) VALUES ($1, $2, $3)
+         ON CONFLICT (workspace_id, user_id) DO UPDATE SET role = EXCLUDED.role
+         WHERE workspace_members.role <> 'Owner'",
+    )
+    .bind(workspace_id)
+    .bind(user_id)
+    .bind(role)
+    .execute(&mut *db)
+    .await?;
+    Ok(Some(workspace_id))
 }
 
 #[utoipa::path(post,path="/api/v1/auth/logout",responses((status=204)))]

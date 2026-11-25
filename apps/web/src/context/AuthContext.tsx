@@ -5,8 +5,8 @@ import { api } from "../lib/api";
 type AuthContextType = {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, invitationToken?: string) => Promise<void>;
+  register: (name: string, email: string, password: string, invitationToken?: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 };
@@ -32,13 +32,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshUser();
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const res = await api.auth.login({ email, password });
+  const login = async (email: string, password: string, invitationToken?: string) => {
+    const res = await api.auth.login({ email, password, invitation_token: invitationToken });
+    if (res.joined_workspace_id) localStorage.setItem("rusttrack-active-workspace", res.joined_workspace_id);
     setUser(res.user);
   };
 
-  const register = async (name: string, email: string, password: string) => {
-    const res = await api.auth.register({ name, email, password });
+  const register = async (name: string, email: string, password: string, invitationToken?: string) => {
+    const res = await api.auth.register({ name, email, password, invitation_token: invitationToken });
+    if (res.joined_workspace_id) localStorage.setItem("rusttrack-active-workspace", res.joined_workspace_id);
     setUser(res.user);
   };
 

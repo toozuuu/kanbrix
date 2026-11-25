@@ -400,12 +400,14 @@ export interface components {
             created_at: string;
         };
         RegisterRequest: {
-            name: string;
             email: string;
+            invitation_token?: string | null;
+            name: string;
             password: string;
         };
         LoginRequest: {
             email: string;
+            invitation_token?: string | null;
             password: string;
         };
         UserResponse: {
@@ -416,6 +418,8 @@ export interface components {
             created_at: string;
         };
         AuthResponse: {
+            /** Format: uuid */
+            joined_workspace_id?: string | null;
             user: components["schemas"]["UserResponse"];
         };
         CreateCommentRequest: {
@@ -583,6 +587,10 @@ export interface components {
         InviteMemberRequest: {
             email: string;
             role: string;
+        };
+        InviteMemberResponse: {
+            email_sent: boolean;
+            invitation_link: string;
         };
         IssueCounts: {
             total: number;
@@ -1103,6 +1111,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description workspace id */
                 workspace_id: string;
             };
             cookie?: never;
@@ -1113,12 +1122,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Success */
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["InviteMemberResponse"];
+                };
             };
         };
     };

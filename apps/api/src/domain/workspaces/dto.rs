@@ -57,3 +57,9 @@ pub struct InviteMemberRequest {
     pub email: String,
     pub role: String, // Admin, Member, Viewer
 }
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct InviteMemberResponse {
+    pub invitation_link: String,
+    pub email_sent: bool,
+}

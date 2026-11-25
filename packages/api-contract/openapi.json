@@ -96,6 +96,33 @@
         }
       }
     },
+    "/workspaces/{workspace_id}/invitations": {
+      "post": {
+        "tags": ["workspaces"],
+        "summary": "Create a workspace invitation",
+        "parameters": [
+          { "name": "workspace_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/InviteMemberRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Invitation created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InviteMemberResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/workspaces": {
       "get": {
         "tags": ["workspaces"],
@@ -135,7 +162,8 @@
         "properties": {
           "name": { "type": "string" },
           "email": { "type": "string", "format": "email" },
-          "password": { "type": "string" }
+          "password": { "type": "string" },
+          "invitation_token": { "type": "string" }
         }
       },
       "LoginRequest": {
@@ -143,7 +171,8 @@
         "required": ["email", "password"],
         "properties": {
           "email": { "type": "string", "format": "email" },
-          "password": { "type": "string" }
+          "password": { "type": "string" },
+          "invitation_token": { "type": "string" }
         }
       },
       "UserResponse": {
@@ -161,7 +190,24 @@
         "type": "object",
         "required": ["user"],
         "properties": {
-          "user": { "$ref": "#/components/schemas/UserResponse" }
+          "user": { "$ref": "#/components/schemas/UserResponse" },
+          "joined_workspace_id": { "type": "string", "format": "uuid" }
+        }
+      },
+      "InviteMemberRequest": {
+        "type": "object",
+        "required": ["email", "role"],
+        "properties": {
+          "email": { "type": "string", "format": "email" },
+          "role": { "type": "string", "enum": ["Admin", "Member", "Viewer"] }
+        }
+      },
+      "InviteMemberResponse": {
+        "type": "object",
+        "required": ["invitation_link", "email_sent"],
+        "properties": {
+          "invitation_link": { "type": "string", "format": "uri" },
+          "email_sent": { "type": "boolean" }
         }
       },
       "CreateWorkspaceRequest": {

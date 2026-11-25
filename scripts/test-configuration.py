@@ -3,11 +3,12 @@ import json
 import secrets
 from http.cookiejar import CookieJar
 from urllib.error import HTTPError
+from urllib.parse import parse_qs, urlsplit
 from urllib.request import HTTPCookieProcessor, Request, build_opener
 from uuid import uuid4
 
 
-def account():
+def account(register=True):
     client = build_opener(HTTPCookieProcessor(CookieJar()))
 
     def call(path, method="GET", body=None, token=None):
@@ -19,8 +20,9 @@ def account():
         with client.open(req, timeout=10) as res:
             result = res.read()
             return json.loads(result) if result else None
-    call("/auth/register", "POST", {"email": secrets.token_hex(8) + "@example.test",
-                                    "password": secrets.token_urlsafe(24), "name": "Support test"})
+    if register:
+        call("/auth/register", "POST", {"email": secrets.token_hex(8) + "@example.test",
+                                        "password": secrets.token_urlsafe(24), "name": "Support test"})
     return call
 
 
@@ -36,6 +38,25 @@ def reject(status, fn):
 def main():
     admin, outsider = account(), account()
     ws = "/workspaces/" + admin("/workspaces")[0]["id"]
+    invitee = account(register=False)
+    email = secrets.token_hex(8) + "@example.test"
+    signup = {"name": "Invited account", "email": email, "password": secrets.token_urlsafe(24)}
+    route = ws + "/invitations"
+    old_link = admin(route, "POST", {"email": email, "role": "Member"})["invitation_link"]
+    invitation = admin(route, "POST", {"email": email, "role": "Viewer"})
+    old_token = parse_qs(urlsplit(old_link).fragment)["invite"][0]
+    token = parse_qs(urlsplit(invitation["invitation_link"]).fragment)["invite"][0]
+    assert token != old_token and not invitation["email_sent"]
+    reject(400, lambda: invitee("/auth/register", "POST", {**signup, "invitation_token": old_token}))
+    reject(400, lambda: invitee("/auth/register", "POST", {
+        **signup, "email": "wrong-" + email, "invitation_token": token,
+    }))
+    accepted = invitee("/auth/register", "POST", {**signup, "invitation_token": token})
+    assert accepted["joined_workspace_id"] == ws.split("/")[-1]
+    assert any(row["email"] == email and row["role"] == "Viewer" for row in admin(ws + "/members"))
+    reject(400, lambda: invitee("/auth/login", "POST", {
+        "email": email, "password": signup["password"], "invitation_token": token,
+    }))
     config = ws + "/configuration"
     original = admin(config)
     draft = json.loads(json.dumps(original))

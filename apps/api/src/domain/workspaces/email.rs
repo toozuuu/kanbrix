@@ -290,7 +290,7 @@ pub async fn send_workspace_email(
     subject: &str,
     text: &str,
     require_invite_flag: bool,
-) -> Result<(), AppError> {
+) -> Result<bool, AppError> {
     let row = sqlx::query_as::<
         _,
         (
@@ -339,7 +339,7 @@ pub async fn send_workspace_email(
         ));
     }
     if require_invite_flag && !send_invites {
-        return Ok(());
+        return Ok(false);
     }
     if from_email.trim().is_empty() {
         return Err(AppError::BadRequest("From email is not configured".into()));
@@ -474,5 +474,5 @@ pub async fn send_workspace_email(
         )));
     }
 
-    Ok(())
+    Ok(true)
 }

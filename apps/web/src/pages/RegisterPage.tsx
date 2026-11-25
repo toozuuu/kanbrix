@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Input } from "../components/ui/Input";
 import { Button } from "../components/ui/Button";
 import { useAuth } from "../context/AuthContext";
@@ -17,6 +17,8 @@ export function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
+  const { hash } = useLocation();
+  const invitationToken = new URLSearchParams(hash.slice(1)).get("invite") ?? undefined;
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,9 +31,9 @@ export function RegisterPage() {
 
     try {
       setIsLoading(true);
-      await register(name, email, password);
-      toast("Account created successfully! Default workspace initialized.", "success");
-      navigate("/dashboard");
+      await register(name, email, password, invitationToken);
+      toast(invitationToken ? "Account created and workspace joined." : "Account created successfully!", "success");
+      navigate("/dashboard", { replace: true });
     } catch (err: any) {
       toast(err.message || "Registration failed", "error");
     } finally {
@@ -50,7 +52,9 @@ export function RegisterPage() {
             </span>
           </Link>
           <h1 className="page-heading">Create your account</h1>
-          <p className="text-xs text-muted-foreground">Start tracking projects with blazing fast Rust performance</p>
+          <p className="text-xs text-muted-foreground">{invitationToken
+            ? "Use the email address that received the invitation."
+            : "Start tracking projects with blazing fast Rust performance"}</p>
         </div>
 
         <div className="border-t border-border pt-6 space-y-4 md:border-t-0 md:border-l md:pl-10 md:pt-0">
@@ -90,7 +94,7 @@ export function RegisterPage() {
 
           <div className="pt-2 text-center text-xs text-muted-foreground">
             Already have an account?{" "}
-            <Link to="/login" className="font-semibold text-primary hover:underline">
+            <Link to={{ pathname: "/login", hash }} className="font-semibold text-primary hover:underline">
               Sign In
             </Link>
           </div>

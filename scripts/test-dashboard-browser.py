@@ -1,6 +1,7 @@
 """Exercise the signed-in workload chart and settings on a disposable Compose stack."""
 import json
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 from playwright.sync_api import sync_playwright, expect
 
@@ -9,11 +10,12 @@ ORIGIN = "http://localhost:5173"
 
 def account(context, name):
     email = f"{uuid4()}@example.test"
+    password = str(uuid4())
     response = context.request.post("/api/v1/auth/register", data={
-        "email": email, "name": name, "password": str(uuid4()),
+        "email": email, "name": name, "password": password,
     })
     assert response.ok, response.status
-    return email, context.request.get("/api/v1/auth/me").json()
+    return email, password, context.request.get("/api/v1/auth/me").json()
 
 
 def check_settings_tabs(page):
@@ -54,8 +56,8 @@ with sync_playwright() as playwright:
     browser = playwright.chromium.launch()
     owner = browser.new_context(base_url=ORIGIN)
     member = browser.new_context(base_url=ORIGIN)
-    _, ada = account(owner, "Ada")
-    email, kai = account(member, "Kai")
+    _, _, ada = account(owner, "Ada")
+    email, password, kai = account(member, "Kai")
     api = owner.request
     ws = api.get("/api/v1/workspaces").json()[0]["id"]
     base = f"/api/v1/workspaces/{ws}"
@@ -73,6 +75,14 @@ with sync_playwright() as playwright:
     invite = page.get_by_role("dialog")
     invite.locator("input[type=email]").fill(email)
     invite.get_by_role("button", name="Send Invitation").click()
+    invite_link = invite.get_by_role("textbox", name="Invitation link").input_value()
+    invitation_token = parse_qs(urlsplit(invite_link).fragment)["invite"][0]
+    assert all(w["id"] != ws for w in member.request.get("/api/v1/workspaces").json())
+    accepted = member.request.post("/api/v1/auth/login", data={
+        "email": email, "password": password, "invitation_token": invitation_token,
+    })
+    assert accepted.ok and accepted.json()["joined_workspace_id"] == ws
+    invite.get_by_role("button", name="Done").click()
     expect(invite).not_to_be_visible()
     project = next(p for p in api.get(base + "/projects").json() if p["project_key"] == "PILOT")
     project = api.get("/api/v1/projects/" + project["id"]).json()

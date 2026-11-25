@@ -76,13 +76,13 @@ export const api = {
   // Auth
   auth: {
     me: () => request<User>("/auth/me"),
-    register: (body: { name: string; email: string; password: string }) =>
-      request<{ user: User }>("/auth/register", {
+    register: (body: { name: string; email: string; password: string; invitation_token?: string }) =>
+      request<{ user: User; joined_workspace_id?: string }>("/auth/register", {
         method: "POST",
         body: JSON.stringify(body),
       }),
-    login: (body: { email: string; password: string }) =>
-      request<{ user: User }>("/auth/login", {
+    login: (body: { email: string; password: string; invitation_token?: string }) =>
+      request<{ user: User; joined_workspace_id?: string }>("/auth/login", {
         method: "POST",
         body: JSON.stringify(body),
       }),
@@ -110,7 +110,7 @@ export const api = {
     members: (workspaceId: string) =>
       request<WorkspaceMember[]>(`/workspaces/${workspaceId}/members`),
     invite: (workspaceId: string, body: { email: string; role: string }) =>
-      request<void>(`/workspaces/${workspaceId}/invitations`, {
+      request<{ invitation_link: string; email_sent: boolean }>(`/workspaces/${workspaceId}/invitations`, {
         method: "POST",
         body: JSON.stringify(body),
       }),

@@ -77,6 +77,8 @@ docker compose -f docker-compose.production.yml up --build -d
 
  The production configuration uses separate volumes, secure cookies, a private API and database, and starts with an empty workspace database. The first user can register from the web UI. Apply per-client request limits at the TLS proxy when it shares a single source address with Nginx.
 
+Workspace owners and admins can invite teammates by email from **Team Members**. Invitees use the link with the invited email address to sign up or sign in. The link expires after seven days, and resending an invitation replaces the previous link. Configure **Settings → Integrations → Email** and enable invitations for email delivery, or copy the link to share it privately.
+
 The Compose CI job restores PostgreSQL and an uploads archive, starts a separate API, signs in and compares a restored attachment with its original contents. Back up the uploads volume separately when using local attachment storage. To compare board and deadline query plans on a disposable seeded database, run `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v size=1000 -f scripts/benchmark.sql`. The fixture rolls back after reporting the plans.
 
 For a public site, set `SITE_URL` to its full HTTPS origin in your Compose environment or root `.env` file before building the web image. The build uses that origin for the homepage canonical URL and sitemap. The public landing page is rendered to HTML at build time. Account and workspace routes carry a noindex directive.
@@ -93,7 +95,7 @@ The Rust modular monolith lives in `apps/api`, with Axum routes and SQLx migrati
 
 ## Checks
 
-Run `cargo test` from the workspace root with a migrated PostgreSQL database configured for SQLx. Run the frontend checks from the repository root.
+Run `cargo test` from the workspace root with a migrated PostgreSQL database configured for SQLx. Use Node.js 24 for the frontend checks and run them from the repository root.
 
 ```sh
 cd apps/web

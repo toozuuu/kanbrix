@@ -16,6 +16,7 @@ pub struct RegisterRequest {
     pub email: String,
     #[validate(length(min = 8, max = 128, message = "Password must be at least 8 characters"))]
     pub password: String,
+    pub invitation_token: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Validate, ToSchema)]
@@ -23,6 +24,7 @@ pub struct LoginRequest {
     #[validate(email(message = "Invalid email address format"))]
     pub email: String,
     pub password: String,
+    pub invitation_token: Option<String>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -37,4 +39,6 @@ pub struct UserResponse {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct AuthResponse {
     pub user: UserResponse,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub joined_workspace_id: Option<Uuid>,
 }

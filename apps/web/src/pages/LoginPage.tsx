@@ -1,6 +1,6 @@
 import {useTranslation} from "react-i18next";
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Input } from "../components/ui/Input";
 import { Button } from "../components/ui/Button";
 import { useAuth } from "../context/AuthContext";
@@ -18,6 +18,8 @@ export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { hash } = useLocation();
+  const invitationToken = new URLSearchParams(hash.slice(1)).get("invite") ?? undefined;
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,9 +28,9 @@ export function LoginPage() {
 
     try {
       setIsLoading(true);
-      await login(email, password);
-      toast("Welcome back!", "success");
-      navigate("/dashboard");
+      await login(email, password, invitationToken);
+      toast(invitationToken ? "Workspace joined." : "Welcome back!", "success");
+      navigate("/dashboard", { replace: true });
     } catch (err: any) {
       toast(err.message || "Invalid email or password", "error");
     } finally {
@@ -47,7 +49,9 @@ export function LoginPage() {
             </span>
           </Link>
           <h1 className="page-heading">{t("Sign in to your account")}</h1>
-          <p className="text-xs text-muted-foreground">Enter your credentials below to access your workspaces</p>
+          <p className="text-xs text-muted-foreground">{invitationToken
+            ? "Sign in with the email address that received the invitation."
+            : "Enter your credentials below to access your workspaces"}</p>
         </div>
 
         <div className="border-t border-border pt-6 space-y-4 md:border-t-0 md:border-l md:pl-10 md:pt-0">
@@ -78,7 +82,7 @@ export function LoginPage() {
 
           <div className="pt-2 text-center text-xs text-muted-foreground">
             Don't have an account?{" "}
-            <Link to="/register" className="font-semibold text-primary hover:underline">
+            <Link to={{ pathname: "/register", hash }} className="font-semibold text-primary hover:underline">
               Create an account
             </Link>
           </div>
