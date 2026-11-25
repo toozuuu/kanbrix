@@ -1,4 +1,5 @@
 pub mod attachments;
+pub mod deadlines;
 pub mod dto;
 pub mod handlers;
 pub mod live;
@@ -37,6 +38,7 @@ pub fn routes() -> Router<AppState> {
 
 pub fn project_routes() -> Router<AppState> {
     Router::new()
+        .route("/{project_id}/deadlines", get(deadlines::list))
         .route("/{project_id}/report", get(report::report))
         .route("/{project_id}/live", get(live::board))
         .route("/{project_id}/issue-counts", get(handlers::issue_counts))

@@ -1,9 +1,8 @@
 import { ProjectEmptyState } from "../components/ui/ProjectEmptyState";
 import { useTranslation } from "react-i18next";
 import { useCalendar } from "./PersonalSettings";
-import { useState, useMemo, lazy, Suspense } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { addDays, format } from "date-fns";
+import { useState, lazy, Suspense } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useWorkspace } from "../context/WorkspaceContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
@@ -12,6 +11,7 @@ import { Avatar } from "../components/ui/Avatar";
 import { Button } from "../components/ui/Button";
 import { LabelBadge } from "../components/ui/LabelBadge";
 import { ProjectSpinner } from "../components/ui/ProjectSpinner";
+import { useToast } from "../components/ui/Toast";
 import { formatRelativeTime, getPriorityColor, getTypeBadge } from "../lib/utils";
 import {
   Kanban,
@@ -41,29 +41,27 @@ export function DashboardPage({ onOpenCreateIssue, onSelectIssue }: DashboardPag
   const projectId = currentProject?.id;
   const workspaceId = currentWorkspace?.id;
   const [onlyMine, setOnlyMine] = useState(false);
-  const calendar = useCalendar();
-  const today = calendar.day();
-  const cutoff = useMemo(
-    () => format(addDays(new Date(today + "T12:00:00"), 7), "yyyy-MM-dd") + "T00:00:00Z",
-    [today],
-  );
+  const today = useCalendar().day();
+  const { toast } = useToast();
+  const openIssue = useMutation({ mutationFn: api.issues.get });
 
   const issueQuery = useQuery({
     refetchOnMount: "always",
-    queryKey: ["dashboard-issues", user?.id, projectId, cutoff, onlyMine],
+    queryKey: ["dashboard-issues", user?.id, projectId],
     enabled: !!projectId && !!user,
     queryFn: async () => {
-      const [counts, assignedToMe, deadlines] = await Promise.all([
+      const [counts, assignedToMe] = await Promise.all([
         api.issues.counts(projectId!),
         api.issues.list(projectId!, { assignee_id: user!.id, limit: 20 }),
-        api.issues.list(projectId!, {
-          due_before: cutoff,
-          assignee_id: onlyMine ? user!.id : undefined,
-          limit: 20,
-        }),
       ]);
-      return { ...counts, assignedToMe, deadlines };
+      return { ...counts, assignedToMe };
     },
+  });
+
+  const deadlineQuery = useQuery({
+    queryKey: ["dashboard-issues", "deadlines", user?.id, projectId, today, onlyMine],
+    enabled: !!projectId && !!user,
+    queryFn: () => api.issues.deadlines(projectId!, today, onlyMine),
   });
 
   const activityQuery = useQuery({
@@ -79,14 +77,11 @@ export function DashboardPage({ onOpenCreateIssue, onSelectIssue }: DashboardPag
     in_progress: inProgress = 0,
     completed = 0,
     assignedToMe = [],
-    deadlines = [],
   } = issueQuery.data ?? {};
 
   const firstName = user?.name?.trim().split(/\s+/)[0];
   const completionPct = total ? Math.round((completed * 100) / total) : 0;
-  const overdueCount = deadlines.filter(
-    (issue) => issue.due_date && issue.due_date.slice(0, 10) < today,
-  ).length;
+  const { items: deadlines = [], overdue_count: overdueCount = 0 } = deadlineQuery.data ?? {};
 
   return (
     <div className="space-y-6">
@@ -349,7 +344,13 @@ export function DashboardPage({ onOpenCreateIssue, onSelectIssue }: DashboardPag
                 </label>
               </div>
 
-              {deadlines.length ? (
+              {deadlineQuery.isPending && <ProjectSpinner size="sm" message="Loading deadlines." />}
+              {deadlineQuery.isError && (
+                <p role="alert" className="text-sm">Could not load deadlines.{" "}
+                  <button type="button" className="text-primary underline" onClick={() => void deadlineQuery.refetch()}>Retry</button>
+                </p>
+              )}
+              {deadlines.length > 0 && (
                 <ul className="max-h-80 divide-y divide-border/60 overflow-y-auto pr-1">
                   {deadlines.map((issue) => {
                     const date = issue.due_date!.slice(0, 10);
@@ -359,7 +360,11 @@ export function DashboardPage({ onOpenCreateIssue, onSelectIssue }: DashboardPag
                       <li key={issue.id}>
                         <button
                           type="button"
-                          onClick={() => onSelectIssue(issue)}
+                          onClick={() => openIssue.mutate(issue.id, {
+                            onSuccess: onSelectIssue,
+                            onError: () => toast("Could not open the issue.", "error"),
+                          })}
+                          disabled={openIssue.isPending && openIssue.variables === issue.id}
                           className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left text-sm hover:bg-secondary/50 transition-colors"
                         >
                           <span className="shrink-0 font-mono text-xs font-semibold text-primary">
@@ -385,7 +390,8 @@ export function DashboardPage({ onOpenCreateIssue, onSelectIssue }: DashboardPag
                     );
                   })}
                 </ul>
-              ) : (
+              )}
+              {deadlineQuery.isSuccess && deadlines.length === 0 && (
                 <div className="py-10 text-center text-xs text-muted-foreground">
                   No open issues due in this period.
                 </div>
