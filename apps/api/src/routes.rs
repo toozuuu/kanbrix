@@ -8,6 +8,7 @@ use serde_json::json;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
+use utoipa_axum::OpenApi as _;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::{
