@@ -124,6 +124,7 @@ export function CommandPalette({ isOpen, onClose, onToggle, onSelectIssue }: Com
   const quickLinks = [
     { label: "Go to Kanban Board", path: "/kanban", icon: Kanban },
     { label: "Go to Backlog & Sprints", path: "/backlog", icon: ListTodo },
+    { label: "Go to My Work", path: "/my-work", icon: ListTodo },
     { label: "Go to Projects", path: "/projects", icon: FolderKanban },
     { label: "Manage Team Members", path: "/members", icon: Users },
     ...["Branding","Calendar","Issue forms","Templates","Permissions","History"].map(section=>({label:"Settings / "+section,path:"/settings?section="+encodeURIComponent(section),icon:Settings})),

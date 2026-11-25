@@ -133,6 +133,15 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+export function IssueProjectScope({ project, children }: { project: Project; children: React.ReactNode }) {
+  const workspace = useWorkspace();
+  return (
+    <WorkspaceContext.Provider value={{ ...workspace, currentProject: project }}>
+      {children}
+    </WorkspaceContext.Provider>
+  );
+}
+
 export function useWorkspace() {
   const context = useContext(WorkspaceContext);
   if (!context) {

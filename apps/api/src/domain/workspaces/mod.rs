@@ -3,6 +3,7 @@ pub mod dto;
 pub mod email;
 pub mod handlers;
 pub mod integrations;
+pub mod my_work;
 pub mod search;
 pub mod sync;
 
@@ -74,6 +75,7 @@ pub fn routes() -> Router<AppState> {
             get(configuration::export),
         )
         .route("/{workspace_id}/search", get(search::search))
+        .route("/{workspace_id}/my-work", get(my_work::list))
         .route("/{workspace_id}/members", get(handlers::list_members))
         .route("/{workspace_id}/invitations", post(handlers::invite_member))
 }

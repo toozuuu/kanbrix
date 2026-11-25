@@ -94,4 +94,22 @@ try{
   assert.equal(mine.items.length, 20);
   assert.ok(mine.items.every(item => item.title.startsWith("Assigned deadline")));
   assert.equal((await outsider.call(deadlines)).status, 404);
+  const myWorkPath = `/workspaces/${ws}/my-work`;
+  await user.json("/issues/" + imported.id, { assignee_id: assignee }, "PATCH");
+  for (let index = 0; index < 8; index++) {
+    await user.json(`/projects/${pilot.id}/issues`, {
+      title: "Pilot assignment " + index, status_id: pilot.statuses[0].id, assignee_id: assignee,
+    });
+  }
+  const firstPage = await user.json(myWorkPath);
+  assert.equal(firstPage.items.length, 30);
+  assert.equal(firstPage.next_offset, 30);
+  const lastPage = await user.json(myWorkPath + "?offset=" + firstPage.next_offset);
+  assert.equal(lastPage.items.length, 1);
+  assert.equal(lastPage.next_offset, null);
+  const assignments = [...firstPage.items, ...lastPage.items];
+  assert.equal(new Set(assignments.map(item => item.id)).size, 31);
+  assert.ok(assignments.some(item => item.id === imported.id && item.project_name === "Migration pilot"));
+  assert.ok(assignments.every(item => item.title !== "Completed deadline"));
+  assert.equal((await outsider.call(myWorkPath)).status, 403);
 }finally{socket.close();}
