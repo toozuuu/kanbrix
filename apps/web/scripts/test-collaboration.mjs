@@ -94,4 +94,12 @@ try{
   assert.equal(mine.items.length, 20);
   assert.ok(mine.items.every(item => item.title.startsWith("Assigned deadline")));
   assert.equal((await outsider.call(deadlines)).status, 404);
+  const myWorkPath = `/workspaces/${ws}/my-work`;
+  await user.json("/issues/" + imported.id, { assignee_id: assignee }, "PATCH");
+  const myWork = await user.json(myWorkPath);
+  assert.equal(myWork.items.length, 23);
+  assert.equal(myWork.next_offset, null);
+  assert.ok(myWork.items.some(item => item.id === imported.id && item.project_name === "Migration pilot"));
+  assert.ok(myWork.items.every(item => item.title !== "Completed deadline"));
+  assert.equal((await outsider.call(myWorkPath)).status, 403);
 }finally{socket.close();}

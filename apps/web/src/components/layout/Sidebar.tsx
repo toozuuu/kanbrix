@@ -5,7 +5,7 @@ import { useWorkflow } from "../../context/useWorkflow";
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
-  LayoutDashboard, Kanban, ListTodo, FolderKanban, Users, Settings, LogOut,
+  LayoutDashboard, Kanban, ListTodo, FolderKanban, Users, Settings, LogOut, UserCheck,
   Moon, Sun, Laptop, PanelLeftClose, PanelLeftOpen, Layers3,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -23,6 +23,7 @@ const groups = [
     { label: "Backlog & sprints", href: "/backlog", icon: ListTodo },
   ] },
   { label: "Workspace", items: [
+    { label: "My Work", href: "/my-work", icon: UserCheck },
     { label: "Projects", href: "/projects", icon: FolderKanban },
     { label: "Team members", href: "/members", icon: Users },
     { label: "Settings", href: "/settings", icon: Settings },

@@ -116,6 +116,11 @@ export const api = {
       }),
     activity: (workspaceId: string, issueId?: string) =>
       request<ActivityLog[]>(`/workspaces/${workspaceId}/activity${issueId ? "?issue_id=" + encodeURIComponent(issueId) : ""}`),
+    myWork: (workspaceId: string, offset: number) =>
+      request<{
+        items: (Pick<Issue, "id" | "identifier" | "title" | "status_name" | "due_date"> & { project_name: string })[];
+        next_offset: number | null;
+      }>(`/workspaces/${workspaceId}/my-work?offset=${offset}`),
   },
 
   // Projects

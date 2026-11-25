@@ -7,10 +7,11 @@ import { useConfiguration } from "./context/useConfiguration";
 import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
 import { Routes, Route, Navigate, useMatch, useNavigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
-import { useWorkspace } from "./context/WorkspaceContext";
+import { IssueProjectScope, useWorkspace } from "./context/WorkspaceContext";
 
 // Pages (code-split per route)
 const DashboardPage = lazy(() => import("./pages/DashboardPage").then(m => ({ default: m.DashboardPage })));
+const MyWorkPage = lazy(() => import("./pages/MyWorkPage").then(m => ({ default: m.MyWorkPage })));
 const KanbanPage = lazy(() => import("./pages/KanbanPage").then(m => ({ default: m.KanbanPage })));
 const BacklogPage = lazy(() => import("./pages/BacklogPage").then(m => ({ default: m.BacklogPage })));
 const ProjectsPage = lazy(() => import("./pages/ProjectsPage").then(m => ({ default: m.ProjectsPage })));
@@ -21,7 +22,7 @@ const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ defa
 import { Sidebar } from "./components/layout/Sidebar";
 import { Header } from "./components/layout/Header";
 import { ProjectSpinner } from "./components/ui/ProjectSpinner";
-import { Issue } from "./types";
+import type { Issue, Project } from "./types";
 
 const CommandPalette = lazy(() => import("./components/layout/CommandPalette").then(m => ({ default: m.CommandPalette })));
 const KeyboardShortcuts = lazy(() => import("./components/layout/KeyboardShortcuts").then(m => ({ default: m.KeyboardShortcuts })));
@@ -48,11 +49,12 @@ export default function ProtectedLayout() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isKeyboardShortcutsOpen, setIsKeyboardShortcutsOpen] = useState(false);
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
+  const [selectedIssueProject, setSelectedIssueProject] = useState<Project | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const client = useQueryClient();
   const refreshIssueViews = useCallback(() => {
-    for (const key of ["dashboard-issues", "workspace-activity", "board-issues", "project-labels", "get"]) {
+    for (const key of ["dashboard-issues", "my-work", "workspace-activity", "board-issues", "project-labels", "get"]) {
       void client.invalidateQueries({queryKey: key === "get" ? [key, "/api/v1/projects/{project}/report"] : [key]});
     }
     setRefreshKey(key => key + 1);
@@ -62,11 +64,23 @@ export default function ProtectedLayout() {
   const navigate = useNavigate();
   const isProjectsPage = useMatch("/projects") !== null;
   const isSettingsPage = useMatch("/settings") !== null;
-  const routesKey = isProjectsPage || isSettingsPage
+  const isMyWorkPage = useMatch("/my-work") !== null;
+  const routesKey = isProjectsPage || isSettingsPage || isMyWorkPage
     ? currentWorkspace?.id
     : `${currentWorkspace?.id}/${currentProject?.id}`;
 
-  useEffect(()=>{setSelectedIssue(prev=>prev?.project_id===currentProject?.id?prev:null);setIsCreateIssueOpen(false);},[currentProject?.id,currentWorkspace?.id]);
+  const canOpenWorkspaceIssue = isMyWorkPage && selectedIssueProject?.workspace_id === currentWorkspace?.id;
+  const detailProject = selectedIssue?.project_id === currentProject?.id
+    ? currentProject
+    : canOpenWorkspaceIssue && selectedIssue?.project_id === selectedIssueProject?.id ? selectedIssueProject : null;
+
+  useEffect(() => {
+    setSelectedIssue(previous => (
+      previous?.project_id === currentProject?.id ||
+      (canOpenWorkspaceIssue && previous?.project_id === selectedIssueProject?.id)
+    ) ? previous : null);
+  }, [currentProject?.id, currentWorkspace?.id, canOpenWorkspaceIssue, selectedIssueProject?.id]);
+  useEffect(() => setIsCreateIssueOpen(false), [currentProject?.id, currentWorkspace?.id]);
 
   // Keyboard shortcuts handler (Jira-like hotkeys)
   useEffect(()=>{
@@ -204,6 +218,10 @@ export default function ProtectedLayout() {
                 }
               />
               <Route path="/projects" element={<ProjectsPage />} />
+              <Route path="/my-work" element={<MyWorkPage onSelectIssue={(issue, project) => {
+                setSelectedIssueProject(project);
+                setSelectedIssue(issue);
+              }} />} />
               <Route path="/members" element={<MembersPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
@@ -226,13 +244,14 @@ export default function ProtectedLayout() {
       )}
 
       {/* Global Issue Detail Modal */}
-      {selectedIssue && selectedIssue.project_id === currentProject?.id && (
+      {selectedIssue && detailProject && (
         <Suspense fallback={null}>
+          <IssueProjectScope project={detailProject}>
           <IssueDetailModal
             isOpen={Boolean(selectedIssue)}
             onClose={() => setSelectedIssue(null)}
             issue={selectedIssue}
-            statuses={statuses}
+            statuses={detailProject.id === currentProject?.id ? statuses : detailProject.statuses ?? []}
             onIssueUpdated={(updated) => {
               setSelectedIssue(current => current?.id === updated.id ? updated : current);
               refreshIssueViews();
@@ -242,6 +261,7 @@ export default function ProtectedLayout() {
               refreshIssueViews();
             }}
           />
+          </IssueProjectScope>
         </Suspense>
       )}
 
