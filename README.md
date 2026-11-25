@@ -11,6 +11,20 @@ Kanbrix is an independent Jira alternative. The [roadmap](docs/ROADMAP.md) track
 - Plan sprints from the backlog and follow project completion on the dashboard.
 - Manage workspace members and keep project data on your own infrastructure.
 
+## Screenshots
+
+### Kanban board
+
+![Customer Portal Kanban board with five workflow columns, color-coded labels, and issue priorities](docs/screenshots/kanban-board.png)
+
+### Project dashboard
+
+![Customer Portal dashboard showing issue counts, assignments, deadlines, and workload reports](docs/screenshots/project-dashboard.png)
+
+### Landing page
+
+![Kanbrix landing page with an interactive release workflow and sample board](docs/screenshots/landing.png)
+
 ## Run locally
 
 Install Git and Docker with Compose. Then clone Kanbrix and start the database, API, and web interface.
