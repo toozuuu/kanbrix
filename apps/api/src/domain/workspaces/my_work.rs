@@ -39,6 +39,7 @@ pub struct MyWork {
 
 #[utoipa::path(
     get, path = "/api/v1/workspaces/{workspace_id}/my-work",
+    operation_id = "list_workspace_my_work",
     params(
         ("workspace_id" = Uuid, Path, description = "Workspace ID"),
         ("offset" = Option<i64>, Query, description = "Number of assignments to skip"),
