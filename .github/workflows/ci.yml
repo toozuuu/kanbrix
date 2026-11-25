@@ -9,6 +9,10 @@ on:
   pull_request:
     branches: [ main ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   backend:
     name: Backend Lint, Test & Build
@@ -107,9 +111,27 @@ jobs:
   compose:
     name: Compose startup and database recovery
     runs-on: ubuntu-latest
+    env:
+      COMPOSE_PROJECT_NAME: kanbrix
     steps:
       - uses: actions/checkout@v4
-      - run: docker compose up -d --build
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - name: Build Compose images with layer caching
+        uses: docker/bake-action@018cb6412ab401ebaa809aa5f85966b74628600f # v7.4.0
+        with:
+          source: .
+          files: docker-compose.yml
+          targets: api,web
+          load: true
+          set: |
+            api.tags=kanbrix-api:latest
+            api.cache-from=type=gha,scope=kanbrix-ci-api
+            api.cache-to=type=gha,scope=kanbrix-ci-api,mode=max,ignore-error=true
+            web.tags=kanbrix-web:latest
+            web.cache-from=type=gha,scope=kanbrix-ci-web
+            web.cache-to=type=gha,scope=kanbrix-ci-web,mode=max,ignore-error=true
+      - run: docker compose up -d --no-build
       - name: Verify public page and API readiness
         run: |
           curl --fail --retry 30 --retry-all-errors --retry-delay 2 http://localhost:8080/ready
