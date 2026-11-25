@@ -42,7 +42,12 @@ impl Cache {
 
     pub async fn get<T: DeserializeOwned>(&self, key: &str) -> Option<T> {
         let mut conn = self.connection().await?;
-        let raw = match timeout(Duration::from_millis(150), conn.get::<_, Option<String>>(key)).await {
+        let raw = match timeout(
+            Duration::from_millis(150),
+            conn.get::<_, Option<String>>(key),
+        )
+        .await
+        {
             Ok(Ok(val)) => val?,
             _ => {
                 *self.conn.write().await = None;
@@ -59,9 +64,12 @@ impl Cache {
         let Ok(raw) = serde_json::to_string(value) else {
             return;
         };
-        if timeout(Duration::from_millis(150), conn.set_ex::<_, _, ()>(key, raw, 300))
-            .await
-            .is_err()
+        if timeout(
+            Duration::from_millis(150),
+            conn.set_ex::<_, _, ()>(key, raw, 300),
+        )
+        .await
+        .is_err()
         {
             *self.conn.write().await = None;
         }

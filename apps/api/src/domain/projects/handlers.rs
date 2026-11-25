@@ -462,13 +462,15 @@ pub async fn delete_filter(
     Path((project_id, filter_id)): Path<(Uuid, Uuid)>,
     State(state): State<AppState>,
 ) -> Result<StatusCode, AppError> {
-    sqlx::query("DELETE FROM project_saved_filters WHERE id = $1 AND project_id = $2 AND user_id = $3")
-        .bind(filter_id)
-        .bind(project_id)
-        .bind(auth_user.id)
-        .execute(&state.pool)
-        .await
-        .map_err(AppError::DatabaseError)?;
+    sqlx::query(
+        "DELETE FROM project_saved_filters WHERE id = $1 AND project_id = $2 AND user_id = $3",
+    )
+    .bind(filter_id)
+    .bind(project_id)
+    .bind(auth_user.id)
+    .execute(&state.pool)
+    .await
+    .map_err(AppError::DatabaseError)?;
 
     Ok(StatusCode::NO_CONTENT)
 }

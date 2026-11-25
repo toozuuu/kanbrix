@@ -18,7 +18,10 @@ pub fn routes() -> Router<AppState> {
             "/:project_id/filters",
             get(handlers::list_filters).post(handlers::create_filter),
         )
-        .route("/:project_id/filters/:filter_id", delete(handlers::delete_filter))
+        .route(
+            "/:project_id/filters/:filter_id",
+            delete(handlers::delete_filter),
+        )
         .route(
             "/:project_id",
             get(handlers::get_project)

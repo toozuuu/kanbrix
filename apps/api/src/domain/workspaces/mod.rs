@@ -60,26 +60,11 @@ pub fn routes() -> Router<AppState> {
             "/:workspace_id/projects/:project/git-transitions",
             get(sync::git_settings).put(sync::save_git_settings),
         )
-        .route(
-            "/:workspace_id/sync/preview",
-            post(sync::preview),
-        )
-        .route(
-            "/:workspace_id/sync/import",
-            post(sync::import_project),
-        )
-        .route(
-            "/:workspace_id/sync/seed-demo",
-            post(sync::seed_demo),
-        )
-        .route(
-            "/:workspace_id/email",
-            get(email::read).put(email::save),
-        )
-        .route(
-            "/:workspace_id/email/test",
-            post(email::send_test),
-        )
+        .route("/:workspace_id/sync/preview", post(sync::preview))
+        .route("/:workspace_id/sync/import", post(sync::import_project))
+        .route("/:workspace_id/sync/seed-demo", post(sync::seed_demo))
+        .route("/:workspace_id/email", get(email::read).put(email::save))
+        .route("/:workspace_id/email/test", post(email::send_test))
         .route(
             "/:workspace_id/configuration/preview",
             post(configuration::preview),

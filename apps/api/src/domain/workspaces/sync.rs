@@ -125,7 +125,16 @@ pub async fn preview(
 
     let client = http_client()?;
     let result = match req.provider.trim().to_ascii_lowercase().as_str() {
-        "jira" => preview_jira(&client, req.base_url.as_deref(), req.email.as_deref(), token, target).await?,
+        "jira" => {
+            preview_jira(
+                &client,
+                req.base_url.as_deref(),
+                req.email.as_deref(),
+                token,
+                target,
+            )
+            .await?
+        }
         "github" => preview_github(&client, token, target).await?,
         "linear" => preview_linear(&client, token, target).await?,
         _ => {
@@ -148,7 +157,12 @@ fn jira_description(value: &Value) -> Option<String> {
     if value.get("type").and_then(Value::as_str) == Some("hardBreak") {
         return Some("\n".into());
     }
-    let parts: Vec<_> = value.get("content")?.as_array()?.iter().filter_map(jira_description).collect();
+    let parts: Vec<_> = value
+        .get("content")?
+        .as_array()?
+        .iter()
+        .filter_map(jira_description)
+        .collect();
     let separator = match value.get("type").and_then(Value::as_str) {
         Some("paragraph" | "heading") => "",
         _ => "\n",
@@ -167,7 +181,9 @@ async fn preview_jira(
         .map(str::trim)
         .filter(|s| s.starts_with("https://") || s.starts_with("http://"))
         .map(|s| s.trim_end_matches('/'))
-        .ok_or_else(|| AppError::BadRequest("Valid Jira base URL (http/https) is required".into()))?;
+        .ok_or_else(|| {
+            AppError::BadRequest("Valid Jira base URL (http/https) is required".into())
+        })?;
 
     let apply_auth = |builder: reqwest::RequestBuilder| -> reqwest::RequestBuilder {
         let builder = builder.header("Accept", "application/json");
@@ -235,7 +251,9 @@ async fn preview_jira(
     let mut seen_tokens = BTreeSet::new();
     loop {
         if issues.len() >= 10_000 {
-            return Err(AppError::BadRequest("Jira preview exceeds 10,000 issues".into()));
+            return Err(AppError::BadRequest(
+                "Jira preview exceeds 10,000 issues".into(),
+            ));
         }
         let mut params = vec![
             ("jql", format!("project = \"{project_key}\"")),
@@ -272,13 +290,22 @@ async fn preview_jira(
         let items = search_json
             .get("issues")
             .and_then(Value::as_array)
-            .ok_or_else(|| AppError::BadRequest("Jira search response is missing its issues list".into()))?;
+            .ok_or_else(|| {
+                AppError::BadRequest("Jira search response is missing its issues list".into())
+            })?;
         let count = items.len();
         if issues.len() + count > 10_000 {
-            return Err(AppError::BadRequest("Jira preview exceeds 10,000 issues".into()));
+            return Err(AppError::BadRequest(
+                "Jira preview exceeds 10,000 issues".into(),
+            ));
         }
         for item in items {
-            let key = item.get("key").and_then(Value::as_str).filter(|key| !key.is_empty()).ok_or_else(|| AppError::BadRequest("Jira returned an issue without a key".into()))?.to_string();
+            let key = item
+                .get("key")
+                .and_then(Value::as_str)
+                .filter(|key| !key.is_empty())
+                .ok_or_else(|| AppError::BadRequest("Jira returned an issue without a key".into()))?
+                .to_string();
             let fields = item.get("fields").unwrap_or(&Value::Null);
             let title = fields
                 .get("summary")
@@ -403,7 +430,9 @@ async fn preview_github(
     let mut issues = Vec::new();
     for page in 1..=5 {
         let issues_resp = client
-            .get(format!("https://api.github.com/repos/{owner}/{name}/issues"))
+            .get(format!(
+                "https://api.github.com/repos/{owner}/{name}/issues"
+            ))
             .query(&[
                 ("state", "all".to_string()),
                 ("per_page", "100".to_string()),
@@ -605,11 +634,7 @@ async fn preview_linear(
             .and_then(Value::as_str)
             .unwrap_or(team_key)
             .to_string(),
-        project_key: normalize_key(
-            team.get("key")
-                .and_then(Value::as_str)
-                .unwrap_or(team_key),
-        ),
+        project_key: normalize_key(team.get("key").and_then(Value::as_str).unwrap_or(team_key)),
         description: team
             .get("description")
             .and_then(Value::as_str)
@@ -639,9 +664,10 @@ pub async fn import_project(
 
     let mut tx = state.pool.begin().await.map_err(AppError::DatabaseError)?;
 
-    let (project_id, final_key, mut issue_counter): (Uuid, String, i32) =
-        if let Some(pid) = req.target_project_id {
-            let row = sqlx::query_as::<_, (Uuid, String, i32)>(
+    let (project_id, final_key, mut issue_counter): (Uuid, String, i32) = if let Some(pid) =
+        req.target_project_id
+    {
+        let row = sqlx::query_as::<_, (Uuid, String, i32)>(
                 "SELECT id, project_key, issue_counter FROM projects WHERE id = $1 AND workspace_id = $2 FOR UPDATE",
             )
             .bind(pid)
@@ -650,9 +676,9 @@ pub async fn import_project(
             .await
             .map_err(AppError::DatabaseError)?
             .ok_or_else(|| AppError::NotFound("Target project not found in workspace".into()))?;
-            row
-        } else {
-            let created = sqlx::query_as::<_, (Uuid, String, i32)>(
+        row
+    } else {
+        let created = sqlx::query_as::<_, (Uuid, String, i32)>(
                 "INSERT INTO projects (workspace_id, name, project_key, description) VALUES ($1, $2, $3, $4) RETURNING id, project_key, issue_counter",
             )
             .bind(ws)
@@ -663,14 +689,14 @@ pub async fn import_project(
             .await
             .map_err(AppError::DatabaseError)?;
 
-            let default_cols = [
-                ("Todo", "Todo", 0),
-                ("In Progress", "InProgress", 1),
-                ("In Review", "InReview", 2),
-                ("Done", "Done", 3),
-            ];
-            for (name, category, pos) in default_cols {
-                sqlx::query(
+        let default_cols = [
+            ("Todo", "Todo", 0),
+            ("In Progress", "InProgress", 1),
+            ("In Review", "InReview", 2),
+            ("Done", "Done", 3),
+        ];
+        for (name, category, pos) in default_cols {
+            sqlx::query(
                     "INSERT INTO issue_statuses (project_id, name, category, position) VALUES ($1, $2, $3, $4)",
                 )
                 .bind(created.0)
@@ -680,9 +706,9 @@ pub async fn import_project(
                 .execute(&mut *tx)
                 .await
                 .map_err(AppError::DatabaseError)?;
-            }
-            created
-        };
+        }
+        created
+    };
 
     let status_rows = sqlx::query_as::<_, (Uuid, String, String)>(
         "SELECT id, name, category FROM issue_statuses WHERE project_id = $1 ORDER BY position ASC",
@@ -704,14 +730,21 @@ pub async fn import_project(
             .map(String::as_str)
             .unwrap_or(ext_status);
         let lower = mapped_name.trim().to_ascii_lowercase();
-        if let Some(exact) = status_rows.iter().find(|(_, n, _)| n.to_ascii_lowercase() == lower) {
+        if let Some(exact) = status_rows
+            .iter()
+            .find(|(_, n, _)| n.to_ascii_lowercase() == lower)
+        {
             return exact.0;
         }
-        let target_cat = if lower.contains("done") || lower.contains("closed") || lower.contains("resolved") {
+        let target_cat = if lower.contains("done")
+            || lower.contains("closed")
+            || lower.contains("resolved")
+        {
             "Done"
         } else if lower.contains("review") {
             "InReview"
-        } else if lower.contains("progress") || lower.contains("doing") || lower.contains("active") {
+        } else if lower.contains("progress") || lower.contains("doing") || lower.contains("active")
+        {
             "InProgress"
         } else {
             "Todo"
@@ -723,13 +756,12 @@ pub async fn import_project(
             .unwrap_or(fallback_status_id)
     };
 
-    let existing_labels = sqlx::query_as::<_, (Uuid, String)>(
-        "SELECT id, name FROM labels WHERE workspace_id = $1",
-    )
-    .bind(ws)
-    .fetch_all(&mut *tx)
-    .await
-    .map_err(AppError::DatabaseError)?;
+    let existing_labels =
+        sqlx::query_as::<_, (Uuid, String)>("SELECT id, name FROM labels WHERE workspace_id = $1")
+            .bind(ws)
+            .fetch_all(&mut *tx)
+            .await
+            .map_err(AppError::DatabaseError)?;
     let mut label_map: HashMap<String, Uuid> = existing_labels
         .into_iter()
         .map(|(id, name)| (name.to_ascii_lowercase(), id))
@@ -745,20 +777,22 @@ pub async fn import_project(
             continue;
         }
         let ext_id = item.external_id.trim();
-        let ext_opt = if ext_id.is_empty() { None } else { Some(ext_id) };
+        let ext_opt = if ext_id.is_empty() {
+            None
+        } else {
+            Some(ext_id)
+        };
         let status_id = resolve_status(&item.status);
         let norm_type = normalize_type(&item.issue_type);
         let norm_prio = normalize_priority(&item.priority);
 
         let existing_id: Option<Uuid> = if let Some(eid) = ext_opt {
-            sqlx::query_scalar(
-                "SELECT id FROM issues WHERE project_id = $1 AND external_id = $2",
-            )
-            .bind(project_id)
-            .bind(eid)
-            .fetch_optional(&mut *tx)
-            .await
-            .map_err(AppError::DatabaseError)?
+            sqlx::query_scalar("SELECT id FROM issues WHERE project_id = $1 AND external_id = $2")
+                .bind(project_id)
+                .bind(eid)
+                .fetch_optional(&mut *tx)
+                .await
+                .map_err(AppError::DatabaseError)?
         } else {
             None
         };
@@ -842,8 +876,10 @@ pub async fn import_project(
             .map_err(AppError::DatabaseError)?;
         }
 
-        outcomes.push(json!({"row":idx+1,"external_id":item.external_id,"issue_id":issue_id,
-            "result":if existing_id.is_some() { "updated" } else { "created" }}));
+        outcomes.push(
+            json!({"row":idx+1,"external_id":item.external_id,"issue_id":issue_id,
+            "result":if existing_id.is_some() { "updated" } else { "created" }}),
+        );
         imported_count += 1;
     }
 
@@ -937,7 +973,9 @@ pub async fn seed_demo(
             target_project_id: None,
             project_name: format!("Sample Product ({suffix})"),
             project_key: format!("DM{suffix}"),
-            description: Some("Sample project seeded with realistic issues, labels, and workflow states.".into()),
+            description: Some(
+                "Sample project seeded with realistic issues, labels, and workflow states.".into(),
+            ),
             status_map: HashMap::new(),
             issues: demo_issues,
         }),
@@ -957,7 +995,9 @@ fn extract_issue_refs(text: &str) -> Vec<(String, i32)> {
             }
             if i < bytes.len() && bytes[i] == b'-' && (2..=10).contains(&(i - start)) {
                 let key = &text[start..i];
-                if key.chars().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit())
+                if key
+                    .chars()
+                    .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit())
                     && key.chars().any(|c| c.is_ascii_uppercase())
                 {
                     let num_start = i + 1;
@@ -990,7 +1030,11 @@ pub struct GitSettings {
     merged: Option<Uuid>,
 }
 
-pub async fn git_settings(user: AuthenticatedUser, State(state): State<AppState>, Path((ws, project)): Path<(Uuid, Uuid)>) -> Result<Json<GitSettings>, AppError> {
+pub async fn git_settings(
+    user: AuthenticatedUser,
+    State(state): State<AppState>,
+    Path((ws, project)): Path<(Uuid, Uuid)>,
+) -> Result<Json<GitSettings>, AppError> {
     verify_workspace_membership(&state.pool, ws, user.id).await?;
     let settings = sqlx::query_as("SELECT git_opened_status AS opened, git_merged_status AS merged FROM projects WHERE id=$1 AND workspace_id=$2")
         .bind(project).bind(ws).fetch_optional(&state.pool).await?
@@ -998,14 +1042,24 @@ pub async fn git_settings(user: AuthenticatedUser, State(state): State<AppState>
     Ok(Json(settings))
 }
 
-pub async fn save_git_settings(user: AuthenticatedUser, State(state): State<AppState>, Path((ws, project)): Path<(Uuid, Uuid)>, Json(settings): Json<GitSettings>) -> Result<Json<GitSettings>, AppError> {
-    if !verify_workspace_membership(&state.pool, ws, user.id).await?.can_manage_workspace() {
+pub async fn save_git_settings(
+    user: AuthenticatedUser,
+    State(state): State<AppState>,
+    Path((ws, project)): Path<(Uuid, Uuid)>,
+    Json(settings): Json<GitSettings>,
+) -> Result<Json<GitSettings>, AppError> {
+    if !verify_workspace_membership(&state.pool, ws, user.id)
+        .await?
+        .can_manage_workspace()
+    {
         return Err(AppError::Forbidden("Administrator access required".into()));
     }
     let updated = sqlx::query("UPDATE projects SET git_opened_status=$3, git_merged_status=$4 WHERE id=$1 AND workspace_id=$2 AND ($3::uuid IS NULL OR EXISTS(SELECT 1 FROM issue_statuses WHERE project_id=$1 AND id=$3)) AND ($4::uuid IS NULL OR EXISTS(SELECT 1 FROM issue_statuses WHERE project_id=$1 AND id=$4))")
         .bind(project).bind(ws).bind(settings.opened).bind(settings.merged).execute(&state.pool).await?;
     if updated.rows_affected() == 0 {
-        return Err(AppError::BadRequest("Choose a status from the selected project".into()));
+        return Err(AppError::BadRequest(
+            "Choose a status from the selected project".into(),
+        ));
     }
     Ok(Json(settings))
 }
@@ -1152,23 +1206,33 @@ mod jira_tests {
     #[tokio::test]
     async fn cloud_preview_reads_six_pages_and_preserves_description_text() {
         async fn page(Query(params): Query<HashMap<String, String>>) -> Json<Value> {
-            let page = params.get("nextPageToken").map(|v| v.parse::<usize>().unwrap()).unwrap_or(0);
+            let page = params
+                .get("nextPageToken")
+                .map(|v| v.parse::<usize>().unwrap())
+                .unwrap_or(0);
             let issues: Vec<_> = (1..=100).map(|index| json!({
                 "key": format!("SRC-{}", page * 100 + index),
                 "fields": {"summary": "Pilot ticket", "description": {
                     "type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Details"}]}]
                 }}
             })).collect();
-            Json(json!({"issues":issues, "nextPageToken":(page < 5).then(|| (page + 1).to_string())}))
+            Json(
+                json!({"issues":issues, "nextPageToken":(page < 5).then(|| (page + 1).to_string())}),
+            )
         }
 
         let app = Router::new()
-            .route("/rest/api/3/project/SRC", get(|| async { Json(json!({"name":"Pilot", "key":"SRC"})) }))
+            .route(
+                "/rest/api/3/project/SRC",
+                get(|| async { Json(json!({"name":"Pilot", "key":"SRC"})) }),
+            )
             .route("/rest/api/3/search/jql", get(page));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
-        let result = preview_jira(&reqwest::Client::new(), Some(&base), None, "fixture", "SRC").await.unwrap();
+        let result = preview_jira(&reqwest::Client::new(), Some(&base), None, "fixture", "SRC")
+            .await
+            .unwrap();
         server.abort();
         assert_eq!(result.issues.len(), 600);
         assert_eq!(result.issues[599].external_id, "SRC-600");

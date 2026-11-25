@@ -143,7 +143,8 @@ pub async fn save(
         "resend" | "sendgrid" | "mailgun" | "postmark" | "webhook"
     ) {
         return Err(AppError::BadRequest(
-            "Unsupported email provider. Choose resend, sendgrid, mailgun, postmark, or webhook.".into(),
+            "Unsupported email provider. Choose resend, sendgrid, mailgun, postmark, or webhook."
+                .into(),
         ));
     }
 
@@ -253,12 +254,7 @@ pub async fn send_test(
 ) -> Result<Json<Value>, AppError> {
     require_admin(&state, ws, user.id).await?;
 
-    let to = match req
-        .to
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-    {
+    let to = match req.to.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
         Some(addr) => addr.to_string(),
         None => sqlx::query_scalar::<_, String>("SELECT email FROM users WHERE id = $1")
             .bind(user.id)
@@ -269,7 +265,9 @@ pub async fn send_test(
     };
 
     if !to.contains('@') {
-        return Err(AppError::BadRequest("Valid recipient email is required".into()));
+        return Err(AppError::BadRequest(
+            "Valid recipient email is required".into(),
+        ));
     }
 
     send_workspace_email(
@@ -318,12 +316,27 @@ pub async fn send_workspace_email(
     .await
     .map_err(AppError::DatabaseError)?;
 
-    let Some((enabled, provider, from_email, from_name, reply_to, api_url, domain, api_key, send_invites)) = row else {
-        return Err(AppError::BadRequest("Email provider is not configured for this workspace".into()));
+    let Some((
+        enabled,
+        provider,
+        from_email,
+        from_name,
+        reply_to,
+        api_url,
+        domain,
+        api_key,
+        send_invites,
+    )) = row
+    else {
+        return Err(AppError::BadRequest(
+            "Email provider is not configured for this workspace".into(),
+        ));
     };
 
     if !enabled {
-        return Err(AppError::BadRequest("Email delivery is disabled for this workspace".into()));
+        return Err(AppError::BadRequest(
+            "Email delivery is disabled for this workspace".into(),
+        ));
     }
     if require_invite_flag && !send_invites {
         return Ok(());
@@ -384,7 +397,9 @@ pub async fn send_workspace_email(
         "mailgun" => {
             let dom = domain.unwrap_or_default();
             if key.is_empty() || dom.is_empty() {
-                return Err(AppError::BadRequest("Mailgun API key and domain are required".into()));
+                return Err(AppError::BadRequest(
+                    "Mailgun API key and domain are required".into(),
+                ));
             }
             let base = api_url
                 .as_deref()
@@ -408,7 +423,9 @@ pub async fn send_workspace_email(
         }
         "postmark" => {
             if key.is_empty() {
-                return Err(AppError::BadRequest("Postmark Server Token is required".into()));
+                return Err(AppError::BadRequest(
+                    "Postmark Server Token is required".into(),
+                ));
             }
             let mut body = json!({
                 "From": from_formatted,
@@ -427,7 +444,8 @@ pub async fn send_workspace_email(
                 .await
         }
         "webhook" => {
-            let url = api_url.ok_or_else(|| AppError::BadRequest("Webhook URL is required".into()))?;
+            let url =
+                api_url.ok_or_else(|| AppError::BadRequest("Webhook URL is required".into()))?;
             let mut req = client.post(url).json(&json!({
                 "from_email": from_email,
                 "from_name": from_name,

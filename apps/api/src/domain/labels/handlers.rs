@@ -109,19 +109,30 @@ pub async fn create_label(
 
     let name = payload.name.trim();
     if name.is_empty() || name.chars().count() > 64 {
-        return Err(AppError::BadRequest("Label names must contain 1 to 64 characters".into()));
+        return Err(AppError::BadRequest(
+            "Label names must contain 1 to 64 characters".into(),
+        ));
     }
     if let Some(project_id) = payload.project_id {
         let mut tx = state.pool.begin().await?;
-        sqlx::query_scalar::<_, Uuid>("SELECT id FROM projects WHERE id = $1 AND workspace_id = $2 FOR KEY SHARE")
-            .bind(project_id).bind(workspace_id).fetch_optional(&mut *tx).await?
-            .ok_or_else(|| AppError::NotFound("Project not found".into()))?;
+        sqlx::query_scalar::<_, Uuid>(
+            "SELECT id FROM projects WHERE id = $1 AND workspace_id = $2 FOR KEY SHARE",
+        )
+        .bind(project_id)
+        .bind(workspace_id)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Project not found".into()))?;
         let label = sqlx::query_as::<_, Label>(
             "INSERT INTO labels (workspace_id, name, color) VALUES ($1,$2,$3)
              ON CONFLICT (workspace_id, name) DO UPDATE SET name = EXCLUDED.name
-             RETURNING id, workspace_id, name, color"
-        ).bind(workspace_id).bind(name).bind(payload.color.as_deref().unwrap_or("#477563"))
-         .fetch_one(&mut *tx).await?;
+             RETURNING id, workspace_id, name, color",
+        )
+        .bind(workspace_id)
+        .bind(name)
+        .bind(payload.color.as_deref().unwrap_or("#477563"))
+        .fetch_one(&mut *tx)
+        .await?;
         sqlx::query("INSERT INTO project_labels (project_id, label_id) VALUES ($1,$2) ON CONFLICT DO NOTHING")
             .bind(project_id).bind(label.id).execute(&mut *tx).await?;
         tx.commit().await?;
@@ -234,7 +245,11 @@ pub async fn replace_issue_labels(
     replace_existing: bool,
 ) -> Result<(), AppError> {
     let mut seen = std::collections::HashSet::with_capacity(label_ids.len());
-    let unique: Vec<Uuid> = label_ids.iter().copied().filter(|id| seen.insert(*id)).collect();
+    let unique: Vec<Uuid> = label_ids
+        .iter()
+        .copied()
+        .filter(|id| seen.insert(*id))
+        .collect();
 
     if !unique.is_empty() {
         let count = sqlx::query_scalar::<_, i64>(

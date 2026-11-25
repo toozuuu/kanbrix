@@ -319,9 +319,15 @@ pub async fn invite_member(
             let body = format!(
                 "You have been added to the {ws_name} workspace with the {assigned_role} role."
             );
-            if let Err(err) =
-                super::email::send_workspace_email(&pool, workspace_id, &recipient, &subject, &body, true)
-                    .await
+            if let Err(err) = super::email::send_workspace_email(
+                &pool,
+                workspace_id,
+                &recipient,
+                &subject,
+                &body,
+                true,
+            )
+            .await
             {
                 tracing::debug!("Skipped/failed workspace invite email: {err:?}");
             }

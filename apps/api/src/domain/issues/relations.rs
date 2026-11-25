@@ -85,14 +85,16 @@ pub async fn get_relations(
 
     let subtasks = subtask_rows
         .into_iter()
-        .map(|(id, key, num, title, priority, status_name, status_category)| SubtaskSummary {
-            id,
-            identifier: format!("{key}-{num}"),
-            title,
-            priority,
-            status_name,
-            status_category,
-        })
+        .map(
+            |(id, key, num, title, priority, status_name, status_category)| SubtaskSummary {
+                id,
+                identifier: format!("{key}-{num}"),
+                title,
+                priority,
+                status_name,
+                status_category,
+            },
+        )
         .collect();
 
     let link_rows = sqlx::query_as::<_, (Uuid, String, Uuid, String, i32, String, String)>(
@@ -125,14 +127,16 @@ pub async fn get_relations(
 
     let links = link_rows
         .into_iter()
-        .map(|(id, link_type, target_id, key, num, title, status_name)| LinkedIssueSummary {
-            id,
-            link_type,
-            issue_id: target_id,
-            identifier: format!("{key}-{num}"),
-            title,
-            status_name,
-        })
+        .map(
+            |(id, link_type, target_id, key, num, title, status_name)| LinkedIssueSummary {
+                id,
+                link_type,
+                issue_id: target_id,
+                identifier: format!("{key}-{num}"),
+                title,
+                status_name,
+            },
+        )
         .collect();
 
     Ok(Json(IssueRelationsResponse { subtasks, links }))
@@ -182,7 +186,9 @@ pub async fn add_link(
     .ok_or_else(|| AppError::NotFound(format!("Issue {ident} not found in workspace")))?;
 
     if target_id == issue_id {
-        return Err(AppError::BadRequest("Cannot link an issue to itself".into()));
+        return Err(AppError::BadRequest(
+            "Cannot link an issue to itself".into(),
+        ));
     }
 
     sqlx::query(
