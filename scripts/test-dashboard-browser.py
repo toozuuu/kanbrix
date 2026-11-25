@@ -17,7 +17,13 @@ def account(context, name):
 
 
 def check_settings_tabs(page):
-    geometry = "items => items.map(item => [item.offsetLeft, item.offsetTop, item.offsetWidth])"
+    geometry = """items => {
+        const nav = items[0].closest('nav').getBoundingClientRect();
+        return [nav.width, items.map(item => {
+            const {x, y, width} = item.getBoundingClientRect();
+            return [x - nav.x, y - nav.y, width].map(Math.round);
+        })];
+    }"""
     page.goto("/settings")
     settings = page.get_by_role("navigation", name="Settings sections")
     expect(settings.get_by_role("link", name="Integrations")).to_be_visible()
